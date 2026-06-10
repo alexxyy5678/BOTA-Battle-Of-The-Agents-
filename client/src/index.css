@@ -1,0 +1,558 @@
+/* Third-party picker styles */
+@import "react-datetime-picker/dist/DateTimePicker.css";
+@import "react-calendar/dist/Calendar.css";
+@import "react-clock/dist/Clock.css";
+
+/* Mobile Compact Design Styles */
+@import './styles/mobile-compact.css';
+
+/* Poppins Rounded Font Configuration */
+@font-face {
+  font-family: 'Poppins Rounded';
+  src: url('/fonts/PoppinsRounded-Rounded.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* React DateTime Picker compact styling */
+.bantah-datetime-wrap {
+  width: 100%;
+  position: relative;
+}
+
+.bantah-datetime {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bantah-datetime .react-datetime-picker__wrapper {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid hsl(220, 9%, 88%);
+  background: hsl(220, 14%, 96%);
+  border-radius: 12px;
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+}
+
+.bantah-datetime .react-datetime-picker__inputGroup {
+  font-size: 11px;
+  color: #0f172a;
+}
+
+.bantah-datetime .react-datetime-picker__inputGroup input {
+  font-size: 11px;
+  color: #0f172a;
+}
+
+.bantah-datetime .react-datetime-picker__inputGroup__divider,
+.bantah-datetime .react-datetime-picker__inputGroup__leadingZero {
+  color: #94a3b8;
+}
+
+.bantah-datetime .react-datetime-picker__calendar-button,
+.bantah-datetime .react-datetime-picker__clear-button {
+  padding: 2px;
+  pointer-events: auto;
+}
+
+.bantah-datetime .react-datetime-picker__calendar-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.bantah-datetime .react-datetime-picker__calendar-button {
+  order: -1;
+  margin-right: 6px;
+  margin-left: 0;
+}
+
+.bantah-datetime--icon-only .react-datetime-picker__inputGroup {
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bantah-datetime--icon-only .react-datetime-picker__wrapper {
+  justify-content: flex-start;
+  gap: 0;
+  cursor: pointer;
+}
+
+.bantah-datetime__hidden-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  width: 0;
+}
+
+.bantah-datetime--icon-only .react-datetime-picker__calendar-button {
+  margin-left: 4px;
+}
+
+.bantah-datetime__placeholder {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #94a3b8;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.bantah-datetime .react-datetime-picker__wrapper {
+  cursor: pointer;
+}
+
+.bantah-datetime__calendar {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid hsl(220, 9%, 88%);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+}
+
+.dark .bantah-datetime .react-datetime-picker__wrapper {
+  border-color: hsl(var(--border));
+  background: hsl(var(--input));
+}
+
+.dark .bantah-datetime .react-datetime-picker__inputGroup,
+.dark .bantah-datetime .react-datetime-picker__inputGroup input {
+  color: #e2e8f0;
+}
+
+.dark .bantah-datetime__calendar {
+  border-color: hsl(var(--border));
+  background: hsl(var(--background));
+}
+
+/* Mobile App-like styles */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Poppins Rounded', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-feature-settings: 'kern' 1;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Remove any existing font references and use SF Pro Rounded */
+  * {
+    font-family: inherit;
+  }
+
+  /* Mobile-specific scrollbar hiding */
+  @media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+    html,
+    body,
+    #root,
+    * {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+
+    *::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+  }
+}
+
+/* Privy modal overrides for BantahBro surfaces */
+#privy-dialog,
+#privy-modal-content {
+  --privy-border-radius-sm: 12px;
+  --privy-border-radius-md: 14px;
+  --privy-border-radius-mdlg: 16px;
+  --privy-border-radius-lg: 20px;
+  --privy-height-modal-compact: 430px;
+  --privy-color-background: #ffffff;
+  --privy-color-background-2: #f8fafc;
+  --privy-color-background-3: #f1f5f9;
+  --privy-color-border-default: transparent;
+  --privy-color-border-hover: transparent;
+  --privy-color-border-interactive: rgba(124, 58, 237, 0.14);
+  --privy-color-border-interactive-hover: rgba(124, 58, 237, 0.22);
+  --privy-color-border-focus: rgba(124, 58, 237, 0.18);
+}
+
+.dark #privy-dialog,
+.dark #privy-modal-content {
+  --privy-color-background: #121212;
+  --privy-color-background-2: #1a1a1a;
+  --privy-color-background-3: #202020;
+  --privy-color-border-default: transparent;
+  --privy-color-border-hover: transparent;
+  --privy-color-border-interactive: rgba(132, 73, 255, 0.16);
+  --privy-color-border-interactive-hover: rgba(132, 73, 255, 0.24);
+  --privy-color-border-focus: rgba(132, 73, 255, 0.2);
+}
+
+#privy-dialog,
+#privy-dialog *,
+#privy-modal-content,
+#privy-modal-content * {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+#privy-dialog-backdrop {
+  background: rgba(15, 23, 42, 0.26) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+#privy-dialog #privy-modal-content {
+  box-shadow: 0 24px 72px rgba(15, 23, 42, 0.18) !important;
+}
+
+#privy-dialog #privy-modal-content button,
+#privy-dialog #privy-modal-content input,
+#privy-dialog #privy-modal-content textarea {
+  box-shadow: none !important;
+}
+
+@media (min-width: 441px) {
+  #privy-dialog #privy-modal-content {
+    width: min(336px, calc(100vw - 24px)) !important;
+  }
+}
+
+/* Mobile App Components */
+@layer components {
+  .no-scrollbar,
+  .scrollbar-hide,
+  .mobile-scrollbar-hide {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar,
+  .mobile-scrollbar-hide::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Compact mobile cards */
+  .mobile-card {
+    @apply bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-3;
+  }
+
+  .mobile-card-compact {
+    @apply bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-2;
+  }
+
+  /* App-like sections */
+  .app-section {
+    @apply bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-3;
+  }
+
+  /* Global rounded corners for all UI elements */
+  .rounded-lg {
+    border-radius: 1rem !important;
+  }
+
+  .rounded-md {
+    border-radius: 0.75rem !important;
+  }
+
+  .rounded-sm {
+    border-radius: 0.5rem !important;
+  }
+
+  /* Tab styling with increased radius and no black borders */
+  [role="tablist"] {
+    @apply rounded-2xl border-slate-200 dark:border-slate-700;
+  }
+
+  [role="tab"] {
+    @apply rounded-xl border-slate-200 dark:border-slate-700;
+  }
+
+  /* Remove black borders from all UI elements - light mode */
+  [role="dialog"],
+  [role="alertdialog"],
+  .toast,
+  [role="listbox"],
+  [role="tooltip"],
+  [data-radix-popper-content-wrapper] {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Form elements styling for light mode - matching search bar design */
+  input,
+  textarea,
+  select,
+  .form-control,
+  .form-input {
+    border-color: hsl(220, 9%, 88%) !important;
+    background-color: hsl(220, 14%, 96%) !important;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus,
+  .form-control:focus,
+  .form-input:focus,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    border-color: hsl(220, 9%, 82%) !important;
+    box-shadow: 0 0 0 2px hsl(220, 14%, 90%) !important;
+    outline: none !important;
+  }
+
+  /* Specific targeting for shadcn components */
+  [data-radix-combobox-trigger]:focus-visible,
+  [data-radix-select-trigger]:focus-visible,
+  .ui-input:focus-visible,
+  .ui-textarea:focus-visible {
+    --tw-ring-color: hsl(220, 14%, 90%) !important;
+    box-shadow: 0 0 0 2px hsl(220, 14%, 90%) !important;
+  }
+
+  /* Dark mode overrides */
+  .dark input,
+  .dark textarea,
+  .dark select,
+  .dark .form-control,
+  .dark .form-input {
+    border-color: hsl(var(--border)) !important;
+    background-color: hsl(var(--input)) !important;
+  }
+
+  .dark input:focus,
+  .dark textarea:focus,
+  .dark select:focus,
+  .dark .form-control:focus,
+  .dark .form-input:focus {
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2) !important;
+  }
+
+  /* Remove black borders from modals, dialogs, toasts */
+  [role="dialog"] {
+    @apply border-slate-200 dark:border-slate-700 shadow-lg;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  [role="alertdialog"] {
+    @apply border-slate-200 dark:border-slate-700 shadow-lg;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Toast styling */
+  .toast {
+    @apply border-slate-200 dark:border-slate-700 shadow-lg;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Select dropdown styling */
+  [role="listbox"] {
+    @apply border-slate-200 dark:border-slate-700 shadow-lg;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Popover styling */
+  [role="tooltip"],
+  [data-radix-popper-content-wrapper] {
+    @apply border-slate-200 dark:border-slate-700 shadow-lg;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Removed duplicate form styling - using the specific light mode styles above instead */
+
+  /* Mobile button styles */
+  .mobile-btn {
+    @apply rounded-full px-4 py-2 font-medium text-sm transition-all duration-200 active:scale-95;
+  }
+
+  .mobile-btn-primary {
+    @apply mobile-btn bg-primary text-white hover:bg-primary/90 shadow-md;
+  }
+
+  .mobile-btn-secondary {
+    @apply mobile-btn bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600;
+  }
+
+  /* Splash screen animation */
+  .animate-fade-out {
+    animation: fadeOut 0.3s ease-out 1.7s forwards;
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+}
+
+@layer components {
+  /* Page transition animations */
+  .page-enter {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  .page-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+  }
+
+  .page-exit {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .page-exit-active {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
+  }
+
+  /* Mobile-first navigation */
+  .mobile-nav-safe-area {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+::root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(220, 9%, 88%);
+  --input: hsl(220, 14%, 96%);
+  --primary: 260 100% 64%;
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(220, 14%, 90%);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: 260 100% 64%;
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 3.7%, 15.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply antialiased bg-background text-foreground;
+    font-family: 'Poppins Rounded', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Symbol', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 400;
+  }
+
+  /* Global form input styling for light mode - matching search bar design */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    border-color: hsl(220, 9%, 88%) !important;
+    background-color: hsl(220, 14%, 96%) !important;
+  }
+
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="number"]:focus,
+  input[type="tel"]:focus,
+  input[type="url"]:focus,
+  input[type="search"]:focus,
+  textarea:focus,
+  select:focus {
+    border-color: hsl(220, 9%, 82%) !important;
+    box-shadow: 0 0 0 2px hsl(220, 14%, 90%) !important;
+    outline: none !important;
+  }
+
+  /* Dark mode specific styling */
+  .dark input[type="text"],
+  .dark input[type="email"],
+  .dark input[type="password"],
+  .dark input[type="number"],
+  .dark input[type="tel"],
+  .dark input[type="url"],
+  .dark input[type="search"],
+  .dark textarea,
+  .dark select {
+    border-color: hsl(var(--border)) !important;
+    background-color: hsl(var(--background)) !important;
+  }
+
+  .dark input[type="text"]:focus,
+  .dark input[type="email"]:focus,
+  .dark input[type="password"]:focus,
+  .dark input[type="number"]:focus,
+  .dark input[type="tel"]:focus,
+  .dark input[type="url"]:focus,
+  .dark input[type="search"]:focus,
+  .dark textarea:focus,
+  .dark select:focus {
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2) !important;
+  }
+}
+
+/* Mobile Compact Design Styles */
+@layer components {
+  /* Mobile-optimized buttons */
+  .mobile-compact-button {
+    @apply h-8 px-3 text-xs font-bold;
+  }
+}

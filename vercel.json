@@ -1,0 +1,149 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist/public",
+  "functions": {
+    "api/[...slug].ts": {
+      "maxDuration": 60,
+      "includeFiles": "{dist/index.cjs,migrations/**,server/assets/**,docs/bantahbro/knowledge/**,client/public/fonts/**,client/public/assets/bantahblue.svg,client/public/assets/bota-bantah-*,public/bantahbro/**,client/public/bantahbro/**,client/public/assets/bantahbro-*}"
+    }
+  },
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/2dgame/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/attached_assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/onchain-indexer",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/challenge-lifecycle",
+      "schedule": "10 0 * * *"
+    },
+    {
+      "path": "/api/cron/event-lifecycle",
+      "schedule": "20 0 * * *"
+    },
+    {
+      "path": "/api/cron/payouts",
+      "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/bantahbro-settlement",
+      "schedule": "40 0 * * *"
+    },
+    {
+      "path": "/api/cron/bantahbro-automation",
+      "schedule": "50 0 * * *"
+    },
+    {
+      "path": "/api/cron/bantahbro-battle-broadcast",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/bota-lifecycle",
+      "schedule": "10 2 * * *"
+    },
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "10 1 * * *"
+    },
+    {
+      "path": "/api/cron/telegram-link-cleanup",
+      "schedule": "20 1 * * *"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/bota/share/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/bota/ref/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/share/bota/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/share/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/share/challenges/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/ref/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/invite/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...slug].ts"
+    },
+    {
+      "src": "/2dgame/?",
+      "dest": "/2dgame/index.html"
+    },
+    {
+      "src": "/assets/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/2dgame/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/attached_assets/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

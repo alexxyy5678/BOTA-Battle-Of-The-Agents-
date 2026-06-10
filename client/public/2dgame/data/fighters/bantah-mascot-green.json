@@ -1,0 +1,170 @@
+{
+  "id": "p1",
+  "name": "Bantah Brawler",
+  "mechanics": "mascot_tactics",
+  "healthSelector": "div.player1 .health",
+  "position": {
+    "x": 525,
+    "y": 390
+  },
+  "velocity": {
+    "x": 0,
+    "y": 0
+  },
+  "offset": {
+    "x": 128,
+    "y": 96
+  },
+  "imageSrc": "image/mascots/actions/bantah-punch-sheet.png",
+  "avatarSrc": "image/mascots/actions/bantah-punch-avatar.png",
+  "totalFrames": 5,
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "frameColumns": 5,
+  "frameStart": 0,
+  "framesHold": 7,
+  "scale": 1.02,
+  "bodySize": {
+    "width": 124,
+    "height": 120
+  },
+  "movement": {
+    "speed": 0,
+    "jumpVelocity": 0
+  },
+  "tactics": {
+    "speed": 68,
+    "maxEnergy": 6,
+    "initialEnergy": 3,
+    "energyRegen": 2,
+    "projectileColor": "#ffb329",
+    "shieldColor": "#9cff35"
+  },
+  "hurtboxes": [
+    {
+      "offset": {
+        "x": -14,
+        "y": -86
+      },
+      "width": 150,
+      "height": 124
+    }
+  ],
+  "collisionBox": {
+    "offset": {
+      "x": -2,
+      "y": -78
+    },
+    "width": 132,
+    "height": 108
+  },
+  "attack": {
+    "damage": 16,
+    "hitFrame": 10,
+    "hitbox": {
+      "offset": {
+        "x": 166,
+        "y": -102
+      },
+      "width": 344,
+      "height": 106
+    }
+  },
+  "moves": [
+    {
+      "id": "signal_bolt",
+      "name": "Signal Bolt",
+      "command": ["attack"],
+      "inputWindowMs": 220,
+      "priority": 10,
+      "sprite": "attack",
+      "damage": 16,
+      "hitFrame": 10,
+      "hitbox": {
+        "offset": {
+          "x": 166,
+          "y": -102
+        },
+        "width": 344,
+        "height": 106
+      }
+    }
+  ],
+  "controls": {
+    "left": ["a"],
+    "right": ["d"],
+    "jump": ["w"],
+    "attack": [" "]
+  },
+  "sprites": {
+    "idle": {
+      "imageSrc": "image/mascots/actions/bantah-punch-sheet.png",
+      "totalFrames": 2,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameColumns": 5,
+      "frameStart": 0,
+      "frameSequence": [0, 1],
+      "framesHold": 14
+    },
+    "run": {
+      "imageSrc": "image/mascots/actions/bantah-punch-sheet.png",
+      "totalFrames": 10,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameColumns": 5,
+      "frameStart": 5,
+      "frameSequence": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "framesHold": 6
+    },
+    "jump": {
+      "imageSrc": "image/mascots/actions/bantah-punch-sheet.png",
+      "totalFrames": 5,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameColumns": 5,
+      "frameStart": 5,
+      "frameSequence": [5, 6, 7, 8, 9],
+      "framesHold": 5
+    },
+    "fall": {
+      "imageSrc": "image/mascots/actions/bantah-punch-sheet.png",
+      "totalFrames": 5,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameColumns": 5,
+      "frameStart": 10,
+      "frameSequence": [20, 21, 22, 23, 24],
+      "framesHold": 6
+    },
+    "attack": {
+      "imageSrc": "image/mascots/actions/bantah-punch-sheet.png",
+      "totalFrames": 10,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameColumns": 5,
+      "frameStart": 10,
+      "frameSequence": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+      "framesHold": 5
+    },
+    "takeHit": {
+      "imageSrc": "image/mascots/actions/bantah-punch-sheet.png",
+      "totalFrames": 4,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameColumns": 5,
+      "frameStart": 15,
+      "frameSequence": [15, 16, 17, 18],
+      "framesHold": 5
+    },
+    "death": {
+      "imageSrc": "image/mascots/actions/bantah-punch-death-sheet.png",
+      "totalFrames": 8,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameColumns": 8,
+      "frameStart": 0,
+      "framesHold": 6
+    }
+  }
+}

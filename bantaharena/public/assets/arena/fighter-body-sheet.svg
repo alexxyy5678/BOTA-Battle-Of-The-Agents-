@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="220" viewBox="0 0 960 220">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="5" flood-color="#000" flood-opacity=".42"/>
+    </filter>
+    <linearGradient id="suit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172a2a"/>
+      <stop offset=".55" stop-color="#152230"/>
+      <stop offset="1" stop-color="#101318"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#79f6ff"/>
+      <stop offset="1" stop-color="#2ee6a6"/>
+    </linearGradient>
+  </defs>
+  <g id="idle-a" transform="translate(0 0)" filter="url(#shadow)">
+    <ellipse cx="80" cy="195" rx="54" ry="15" fill="#000" opacity=".28"/>
+    <path d="M48 75 24 134M112 75l24 59" stroke="#2ee6a6" stroke-width="14" stroke-linecap="round"/>
+    <path d="M60 128 45 190M100 128l15 62" stroke="#2ee6a6" stroke-width="15" stroke-linecap="round"/>
+    <rect x="42" y="52" width="76" height="90" rx="24" fill="url(#suit)" stroke="#2ee6a6" stroke-width="6"/>
+    <path d="M80 72 112 132H48z" fill="url(#core)" opacity=".88"/>
+    <circle cx="80" cy="100" r="12" fill="#fff" opacity=".86"/>
+  </g>
+  <g id="idle-b" transform="translate(160 0)" filter="url(#shadow)">
+    <ellipse cx="80" cy="195" rx="54" ry="15" fill="#000" opacity=".28"/>
+    <path d="M46 76 18 130M114 76l24 62" stroke="#2ee6a6" stroke-width="14" stroke-linecap="round"/>
+    <path d="M57 128 38 190M103 128l20 60" stroke="#2ee6a6" stroke-width="15" stroke-linecap="round"/>
+    <rect x="42" y="50" width="76" height="92" rx="24" fill="url(#suit)" stroke="#2ee6a6" stroke-width="6"/>
+    <path d="M80 70 113 133H47z" fill="url(#core)" opacity=".88"/>
+    <circle cx="80" cy="99" r="12" fill="#fff" opacity=".86"/>
+  </g>
+  <g id="walk" transform="translate(320 0)" filter="url(#shadow)">
+    <ellipse cx="82" cy="195" rx="58" ry="15" fill="#000" opacity=".28"/>
+    <path d="M47 76 16 124M113 76l36 45" stroke="#2ee6a6" stroke-width="14" stroke-linecap="round"/>
+    <path d="M58 128 31 187M101 128l33 51" stroke="#2ee6a6" stroke-width="15" stroke-linecap="round"/>
+    <rect x="44" y="52" width="76" height="88" rx="24" fill="url(#suit)" stroke="#2ee6a6" stroke-width="6"/>
+    <path d="M82 72 114 132H50z" fill="url(#core)" opacity=".88"/>
+    <circle cx="82" cy="100" r="12" fill="#fff" opacity=".86"/>
+  </g>
+  <g id="attack" transform="translate(480 0)" filter="url(#shadow)">
+    <ellipse cx="86" cy="195" rx="62" ry="15" fill="#000" opacity=".28"/>
+    <path d="M50 76 7 90M114 78l43 11" stroke="#2ee6a6" stroke-width="14" stroke-linecap="round"/>
+    <path d="M62 128 38 190M104 128l28 59" stroke="#2ee6a6" stroke-width="15" stroke-linecap="round"/>
+    <rect x="48" y="52" width="78" height="88" rx="24" fill="url(#suit)" stroke="#2ee6a6" stroke-width="6"/>
+    <path d="M87 72 121 132H54z" fill="url(#core)" opacity=".88"/>
+    <circle cx="87" cy="100" r="12" fill="#fff" opacity=".86"/>
+  </g>
+  <g id="hurt" transform="translate(640 0)" filter="url(#shadow)">
+    <ellipse cx="76" cy="196" rx="56" ry="14" fill="#000" opacity=".28"/>
+    <path d="M49 77 30 142M111 78l12 66" stroke="#ff466d" stroke-width="14" stroke-linecap="round"/>
+    <path d="M59 128 54 190M100 128l2 62" stroke="#ff466d" stroke-width="15" stroke-linecap="round"/>
+    <rect x="42" y="54" width="76" height="88" rx="24" fill="#2b1620" stroke="#ff466d" stroke-width="6" transform="rotate(-6 80 98)"/>
+    <path d="M79 74 108 132H48z" fill="#ffd36a" opacity=".9"/>
+    <path d="M58 88h44M61 113h38" stroke="#fff" stroke-width="5" opacity=".55"/>
+  </g>
+  <g id="victory" transform="translate(800 0)" filter="url(#shadow)">
+    <ellipse cx="80" cy="195" rx="54" ry="15" fill="#000" opacity=".28"/>
+    <path d="M47 76 24 36M113 76l24-40" stroke="#ffd36a" stroke-width="14" stroke-linecap="round"/>
+    <path d="M60 128 45 190M100 128l15 62" stroke="#2ee6a6" stroke-width="15" stroke-linecap="round"/>
+    <rect x="42" y="52" width="76" height="90" rx="24" fill="url(#suit)" stroke="#ffd36a" stroke-width="6"/>
+    <path d="M80 72 112 132H48z" fill="url(#core)" opacity=".88"/>
+    <circle cx="80" cy="100" r="12" fill="#fff" opacity=".86"/>
+  </g>
+</svg>

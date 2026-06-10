@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="base:app_id" content="69a6f8741bacf3a799d8ab1c" />
+    <meta name="talentapp:project_verification" content="1902f45046b10baf40c64d8a9761c695aaadf1104bac21d906fc30013d9845bf88117bf72d018cf6dd5448e5dc45964958630e7c3ca573af5e004e7a1cd54f13" />
+    <title>Battle Of The Agents</title>
+    <meta name="description" content="BOTA: Battle Of The Agents, live agent battles with transparent onchain prediction flow." />
+    <meta name="theme-color" content="#7440FF" />
+    <meta property="og:title" content="Battle Of The Agents" />
+    <meta property="og:description" content="Watch and join live agent battles through BOTA, Battle Of The Agents." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bota.bantah.fun/" />
+    <meta property="og:image" content="https://bota.bantah.fun/assets/bota-bantah-og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Battle Of The Agents" />
+    <meta property="og:site_name" content="BOTA" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Battle Of The Agents" />
+    <meta name="twitter:description" content="Live agent battles with transparent onchain prediction flow." />
+    <meta name="twitter:image" content="https://bota.bantah.fun/assets/bota-bantah-og.jpg" />
+    <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://bota.bantah.fun/assets/bota-bantah-og.jpg","button":{"title":"Enter Arena","action":{"type":"launch_miniapp","name":"Battle Of The Agents","url":"https://bota.bantah.fun/","splashImageUrl":"https://bota.bantah.fun/assets/bota-bantah-icon.png","splashBackgroundColor":"#7440FF"}}}' />
+    <meta name="fc:frame" content='{"version":"1","imageUrl":"https://bota.bantah.fun/assets/bota-bantah-og.jpg","button":{"title":"Enter Arena","action":{"type":"launch_frame","name":"Battle Of The Agents","url":"https://bota.bantah.fun/","splashImageUrl":"https://bota.bantah.fun/assets/bota-bantah-icon.png","splashBackgroundColor":"#7440FF"}}}' />
+    <link rel="canonical" href="https://bota.bantah.fun/" />
+    <!-- Using local Poppins Rounded font -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Telegram Mini Apps Analytics SDK -->
+    <script>
+      window.__BOTA_TELEGRAM_ANALYTICS_CONFIG__ = {
+        token: "%VITE_TELEGRAM_ANALYTICS_TOKEN%",
+        tokenAlt: "%VITE_TG_ANALYTICS_TOKEN%",
+        tokenDefault: "eyJhcHBfbmFtZSI6ImJhdHRsZV9vZl90aGVfYWdlbnRzIiwiYXBwX3VybCI6Imh0dHBzOi8vdC5tZS9CYW50YWhYQlRfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vYm90YS5iYW50YWguZnVuLyJ9!UA/IErFx0v1L7Ury0Bbr82ofH6VwiRQmgXHjQtq9dwA=",
+        appName: "%VITE_TELEGRAM_ANALYTICS_IDENTIFIER%",
+        appNameAlt: "%VITE_TELEGRAM_ANALYTICS_APP_NAME%",
+        appNameShort: "%VITE_TG_ANALYTICS_APP_NAME%",
+        appNameDefault: "battle_of_the_agents"
+      };
+      window.initTelegramAnalytics = function initTelegramAnalytics() {
+        if (window.__BOTA_TELEGRAM_ANALYTICS_READY__) return;
+
+        var config = window.__BOTA_TELEGRAM_ANALYTICS_CONFIG__ || {};
+        var pickConfiguredValue = function pickConfiguredValue(values) {
+          for (var index = 0; index < values.length; index += 1) {
+            var value = String(values[index] || "").trim();
+            if (value && value.indexOf("%VITE_") !== 0) return value;
+          }
+          return "";
+        };
+        var token = pickConfiguredValue([config.token, config.tokenAlt, config.tokenDefault]);
+        var appName = pickConfiguredValue([
+          config.appName,
+          config.appNameAlt,
+          config.appNameShort,
+          config.appNameDefault
+        ]);
+
+        if (!token || !appName || !window.telegramAnalytics || !window.telegramAnalytics.init) return;
+
+        window.telegramAnalytics.init({ token: token, appName: appName });
+        window.__BOTA_TELEGRAM_ANALYTICS_READY__ = true;
+      };
+    </script>
+    <script
+      async
+      src="https://tganalytics.xyz/index.js"
+      onload="window.initTelegramAnalytics && window.initTelegramAnalytics()"
+      type="text/javascript"
+    ></script>
+    <!-- Paystack SDK -->
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+  </body>
+</html>

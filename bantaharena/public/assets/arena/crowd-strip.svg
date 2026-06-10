@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="90" viewBox="0 0 960 90">
+  <rect width="960" height="90" fill="#08090d" opacity=".01"/>
+  <g opacity=".74">
+    <circle cx="20" cy="44" r="4" fill="#2ee6a6"/><circle cx="34" cy="33" r="8" fill="#ffd36a"/><circle cx="49" cy="49" r="6" fill="#ff466d"/><circle cx="67" cy="36" r="9" fill="#2ee6a6"/><circle cx="88" cy="55" r="5" fill="#ff466d"/>
+    <circle cx="108" cy="40" r="7" fill="#ffd36a"/><circle cx="128" cy="59" r="4" fill="#2ee6a6"/><circle cx="147" cy="36" r="6" fill="#ff466d"/><circle cx="166" cy="48" r="9" fill="#ffd36a"/><circle cx="190" cy="57" r="5" fill="#2ee6a6"/>
+    <circle cx="214" cy="37" r="8" fill="#ff466d"/><circle cx="235" cy="52" r="5" fill="#ffd36a"/><circle cx="254" cy="44" r="6" fill="#2ee6a6"/><circle cx="276" cy="62" r="9" fill="#ff466d"/><circle cx="303" cy="45" r="5" fill="#ffd36a"/>
+    <circle cx="322" cy="34" r="7" fill="#2ee6a6"/><circle cx="344" cy="56" r="6" fill="#ff466d"/><circle cx="365" cy="40" r="8" fill="#ffd36a"/><circle cx="389" cy="58" r="5" fill="#2ee6a6"/><circle cx="410" cy="42" r="9" fill="#ff466d"/>
+    <circle cx="436" cy="54" r="6" fill="#ffd36a"/><circle cx="456" cy="38" r="5" fill="#2ee6a6"/><circle cx="477" cy="60" r="9" fill="#ff466d"/><circle cx="502" cy="43" r="5" fill="#ffd36a"/><circle cx="524" cy="55" r="7" fill="#2ee6a6"/>
+    <circle cx="547" cy="34" r="6" fill="#ff466d"/><circle cx="567" cy="51" r="9" fill="#ffd36a"/><circle cx="593" cy="61" r="5" fill="#2ee6a6"/><circle cx="613" cy="42" r="8" fill="#ff466d"/><circle cx="637" cy="55" r="6" fill="#ffd36a"/>
+    <circle cx="658" cy="36" r="5" fill="#2ee6a6"/><circle cx="679" cy="60" r="9" fill="#ff466d"/><circle cx="704" cy="45" r="5" fill="#ffd36a"/><circle cx="726" cy="54" r="7" fill="#2ee6a6"/><circle cx="750" cy="36" r="6" fill="#ff466d"/>
+    <circle cx="770" cy="51" r="9" fill="#ffd36a"/><circle cx="795" cy="60" r="5" fill="#2ee6a6"/><circle cx="818" cy="41" r="8" fill="#ff466d"/><circle cx="842" cy="55" r="6" fill="#ffd36a"/><circle cx="864" cy="36" r="5" fill="#2ee6a6"/>
+    <circle cx="884" cy="59" r="9" fill="#ff466d"/><circle cx="912" cy="42" r="5" fill="#ffd36a"/><circle cx="934" cy="55" r="7" fill="#2ee6a6"/>
+  </g>
+</svg>

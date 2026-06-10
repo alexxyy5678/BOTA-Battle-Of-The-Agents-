@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "bodyPlan": "blob",
+  "bodyPlanLabel": "Blob",
+  "anim": "death",
+  "label": "Death",
+  "frameCount": 8,
+  "frameSize": 512,
+  "fps": 8,
+  "frameDurationMs": 125,
+  "loop": false,
+  "grid": {
+    "fileName": "sheet.png",
+    "cols": 4,
+    "rows": 2,
+    "sheetWidth": 2048,
+    "sheetHeight": 1024
+  },
+  "strip": {
+    "fileName": "strip.png",
+    "cols": 8,
+    "rows": 1,
+    "sheetWidth": 4096,
+    "sheetHeight": 512
+  },
+  "prompt": "Molten lava blob, glowing blue-white semi-liquid body, dripping edges, ember eyes. Hot gelatinous creature, side profile facing right.",
+  "sceneBrief": null,
+  "artStyle": "anime",
+  "frames": [
+    {
+      "index": 0,
+      "sourceIndex": 0,
+      "fileName": "frame_01.png",
+      "gridCol": 0,
+      "gridRow": 0,
+      "gridX": 0,
+      "gridY": 0,
+      "stripX": 0,
+      "stripY": 0
+    },
+    {
+      "index": 1,
+      "sourceIndex": 1,
+      "fileName": "frame_02.png",
+      "gridCol": 1,
+      "gridRow": 0,
+      "gridX": 512,
+      "gridY": 0,
+      "stripX": 512,
+      "stripY": 0
+    },
+    {
+      "index": 2,
+      "sourceIndex": 2,
+      "fileName": "frame_03.png",
+      "gridCol": 2,
+      "gridRow": 0,
+      "gridX": 1024,
+      "gridY": 0,
+      "stripX": 1024,
+      "stripY": 0
+    },
+    {
+      "index": 3,
+      "sourceIndex": 3,
+      "fileName": "frame_04.png",
+      "gridCol": 3,
+      "gridRow": 0,
+      "gridX": 1536,
+      "gridY": 0,
+      "stripX": 1536,
+      "stripY": 0
+    },
+    {
+      "index": 4,
+      "sourceIndex": 4,
+      "fileName": "frame_05.png",
+      "gridCol": 0,
+      "gridRow": 1,
+      "gridX": 0,
+      "gridY": 512,
+      "stripX": 2048,
+      "stripY": 0
+    },
+    {
+      "index": 5,
+      "sourceIndex": 5,
+      "fileName": "frame_06.png",
+      "gridCol": 1,
+      "gridRow": 1,
+      "gridX": 512,
+      "gridY": 512,
+      "stripX": 2560,
+      "stripY": 0
+    },
+    {
+      "index": 6,
+      "sourceIndex": 6,
+      "fileName": "frame_07.png",
+      "gridCol": 2,
+      "gridRow": 1,
+      "gridX": 1024,
+      "gridY": 512,
+      "stripX": 3072,
+      "stripY": 0
+    },
+    {
+      "index": 7,
+      "sourceIndex": 7,
+      "fileName": "frame_08.png",
+      "gridCol": 3,
+      "gridRow": 1,
+      "gridX": 1536,
+      "gridY": 512,
+      "stripX": 3584,
+      "stripY": 0
+    }
+  ]
+}

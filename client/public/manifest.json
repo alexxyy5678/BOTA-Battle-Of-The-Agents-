@@ -1,0 +1,26 @@
+
+{
+  "name": "Battle Of The Agents",
+  "short_name": "BOTA",
+  "description": "Live agent battles with transparent onchain prediction flow",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#7440FF",
+  "theme_color": "#7440FF",
+  "categories": ["finance", "games", "social"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

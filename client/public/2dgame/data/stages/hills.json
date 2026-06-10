@@ -1,0 +1,77 @@
+{
+  "canvas": {
+    "width": 1366,
+    "height": 768
+  },
+  "gravity": 0.7,
+  "floorY": 390,
+  "fighterBounds": {
+    "left": 340,
+    "right": 1028
+  },
+  "roundSeconds": 300,
+  "background": {
+    "id": "arena-ens-island",
+    "position": {
+      "x": -1,
+      "y": -96
+    },
+    "imageSrc": "image/ens-arena.png",
+    "totalFrames": 1,
+    "scale": 0.89
+  },
+  "backgroundVariants": [
+    {
+      "id": "arena-ens-city",
+      "position": {
+        "x": -1,
+        "y": -96
+      },
+      "imageSrc": "image/arena-ens.png",
+      "totalFrames": 1,
+      "scale": 0.89
+    },
+    {
+      "id": "arena-bantah-festival",
+      "position": {
+        "x": -1,
+        "y": -96
+      },
+      "imageSrc": "image/bantah-arena.png",
+      "totalFrames": 1,
+      "scale": 0.89
+    },
+    {
+      "id": "arena-fighter-gates",
+      "position": {
+        "x": -129,
+        "y": 0
+      },
+      "imageSrc": "image/bota-fighter-arena.png",
+      "totalFrames": 1,
+      "scale": 0.89
+    },
+    {
+      "id": "arena-elizaos",
+      "position": {
+        "x": -1,
+        "y": -92
+      },
+      "imageSrc": "image/elizaos-arena.jpg",
+      "totalFrames": 1,
+      "scale": 1.07
+    },
+    {
+      "id": "arena-virtuals-protocol",
+      "position": {
+        "x": -1,
+        "y": -92
+      },
+      "imageSrc": "image/virtuals-protocol-arena.jpg",
+      "totalFrames": 1,
+      "scale": 1.07
+    }
+  ],
+  "decorations": [],
+  "overlay": null
+}

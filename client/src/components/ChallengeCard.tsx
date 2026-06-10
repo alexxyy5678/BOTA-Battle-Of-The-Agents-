@@ -1,0 +1,1312 @@
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useWallets } from "@privy-io/react-auth";
+import { SocialMediaShare } from "@/components/SocialMediaShare";
+import {
+  MessageCircle,
+  Check,
+  X,
+  Eye,
+  Trophy,
+  Zap,
+  Lock,
+  Pin,
+  Hourglass,
+} from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
+import { AgentIcon } from "@/components/AgentIcon";
+import { getUserDisplayName, getUserHandle } from "@/hooks/usePublicUserBasic";
+import { useLocation } from "wouter";
+import { useEffect, useMemo, useState } from "react";
+import ProfileCard from "@/components/ProfileCard";
+import { AcceptChallengeModal } from "@/components/AcceptChallengeModal";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  executeOnchainEscrowStakeTx,
+  type OnchainRuntimeConfig,
+  type OnchainTokenSymbol,
+} from "@/lib/onchainEscrow";
+
+interface ChallengeCardProps {
+  challenge: {
+    id: number;
+    challenger: string;
+    challenged: string;
+    challengedWalletAddress?: string | null;
+    title: string;
+    description?: string;
+    category: string;
+    amount: string;
+    status: string;
+    result?: string;
+    challengerSide?: string;
+    challengedSide?: string;
+    dueDate?: string;
+    createdAt: string;
+    adminCreated?: boolean;
+    bonusSide?: string;
+    bonusMultiplier?: string;
+    bonusEndsAt?: string;
+    bonusAmount?: number; // Custom bonus amount in wallet funds
+    yesStakeTotal?: number;
+    noStakeTotal?: number;
+    coverImageUrl?: string;
+    participantCount?: number;
+    commentCount?: number;
+    participantPreviewUsers?: Array<{
+      id: string;
+      username?: string | null;
+      firstName?: string | null;
+      profileImageUrl?: string | null;
+      side?: string | null;
+    }>;
+    earlyBirdSlots?: number;
+    earlyBirdBonus?: number;
+    streakBonusEnabled?: boolean;
+    convictionBonusEnabled?: boolean;
+    firstTimeBonusEnabled?: boolean;
+    socialTagBonus?: number;
+    challengerUser?: {
+      id: string;
+      firstName?: string;
+      lastName?: string;
+      username?: string;
+      profileImageUrl?: string;
+    };
+    challengedUser?: {
+      id: string;
+      firstName?: string;
+      lastName?: string;
+      username?: string;
+      profileImageUrl?: string;
+    };
+    isPinned?: boolean;
+    community?: {
+      programId?: number;
+      name?: string | null;
+      slug?: string | null;
+      logoUrl?: string | null;
+      badgeText?: string | null;
+    };
+    settlementRail?: string | null;
+    chainId?: number | null;
+    tokenSymbol?: string | null;
+    decimals?: number | null;
+    stakeAtomic?: string | null;
+    createdByAgent?: boolean;
+    agentInvolved?: boolean;
+    creatorAgentId?: string | null;
+    challengerAgentId?: string | null;
+    challengedAgentId?: string | null;
+  };
+  onChatClick?: (challenge: any) => void;
+  onJoin?: (challenge: any) => void;
+}
+
+const isUpDownMarketChallenge = (challenge: any) => {
+  const isAdminCreated = challenge?.adminCreated === true;
+  if (!isAdminCreated) return false;
+  const title = String(challenge?.title || "").toLowerCase();
+  const category = String(challenge?.category || "").toLowerCase();
+  const hasBitcoin = title.includes("bitcoin") || title.includes("btc");
+  const hasDirectionPhrase =
+    title.includes("up or down") ||
+    title.includes("up/down") ||
+    (title.includes("up") && title.includes("down"));
+  return hasBitcoin && hasDirectionPhrase && category === "crypto";
+};
+
+const normalizeChallengeImageValue = (value?: string | null) => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("data:image/")) return raw;
+  if (raw.startsWith("/attached_assets/")) return raw;
+  if (raw.startsWith("/api/media/")) return raw;
+  if (raw.startsWith("attached_assets/")) return `/${raw}`;
+  if (raw.startsWith("/assets/")) return raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return null;
+};
+
+const resolveChallengeCoverImage = (challenge: Record<string, any> | null | undefined) => {
+  if (!challenge) return null;
+
+  const candidates = [
+    challenge.coverImageUrl,
+    challenge.cover_image_url,
+    challenge.coverImage,
+    challenge.imageUrl,
+    challenge.image_url,
+    challenge.image,
+    challenge.bannerUrl,
+    challenge.banner_url,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeChallengeImageValue(candidate);
+    if (normalized) return normalized;
+  }
+
+  return null;
+};
+
+export function ChallengeCard({
+  challenge,
+  onChatClick,
+  onJoin,
+}: ChallengeCardProps) {
+  const [coverImageFailed, setCoverImageFailed] = useState(false);
+  const normalizedCoverImageUrl = resolveChallengeCoverImage(challenge as any);
+
+  useEffect(() => {
+    setCoverImageFailed(false);
+  }, [challenge.id, normalizedCoverImageUrl]);
+
+  const queryClient = useQueryClient();
+  const { wallets } = useWallets();
+  const { isAuthenticated, login, user } = useAuth();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const appModeRaw = String((import.meta as any).env?.VITE_APP_MODE || "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .toLowerCase();
+  const isOnchainBuild = appModeRaw !== "offchain";
+  const { data: onchainConfig } = useQuery<OnchainRuntimeConfig>({
+    queryKey: ["/api/onchain/config"],
+    queryFn: async () => await apiRequest("GET", "/api/onchain/config"),
+    retry: false,
+    enabled: isOnchainBuild,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const connectedWallets = useMemo(() => {
+    const raw = user as any;
+    const wallets = new Set<string>();
+    const push = (value: unknown) => {
+      if (typeof value !== "string") return;
+      const normalized = value.trim().toLowerCase();
+      if (/^0x[a-f0-9]{40}$/.test(normalized)) {
+        wallets.add(normalized);
+      }
+    };
+
+    push(raw?.walletAddress);
+    push(raw?.primaryWalletAddress);
+    push(raw?.wallet?.address);
+    if (Array.isArray(raw?.walletAddresses)) {
+      raw.walletAddresses.forEach(push);
+    }
+    if (Array.isArray(raw?.linkedAccounts)) {
+      raw.linkedAccounts.forEach((account: any) => {
+        if (account?.type === "wallet") {
+          push(account?.address);
+        }
+      });
+    }
+
+    return Array.from(wallets);
+  }, [user]);
+
+  const targetedWalletAddress = String(
+    challenge.challengedWalletAddress || (challenge as any).challenged_wallet_address || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const shortenWallet = (address: string) => {
+    if (!address) return "";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const effectiveStatus = (() => {
+    const rawStatus = String(challenge.status || "").toLowerCase();
+    if (challenge.adminCreated) return rawStatus || "open";
+
+    const challenged = typeof (challenge as any).challenged === "string"
+      ? String((challenge as any).challenged).trim()
+      : (challenge as any).challenged;
+    const hasDesignatedOpponent = !!challenged || !!targetedWalletAddress;
+
+    if (rawStatus === "open" || rawStatus === "pending") {
+      return hasDesignatedOpponent ? "pending" : "open";
+    }
+
+    return rawStatus || "pending";
+  })();
+
+  const agentMarketLabel = (() => {
+    const challengerAgentId = String((challenge as any).challengerAgentId || (challenge as any).challenger_agent_id || "").trim();
+    const challengedAgentId = String((challenge as any).challengedAgentId || (challenge as any).challenged_agent_id || "").trim();
+    const creatorAgentId = String((challenge as any).creatorAgentId || (challenge as any).creator_agent_id || "").trim();
+    const createdByAgent = Boolean((challenge as any).createdByAgent || (challenge as any).created_by_agent);
+    const agentInvolved = Boolean((challenge as any).agentInvolved || (challenge as any).agent_involved);
+
+    if (challengerAgentId && challengedAgentId) return "Agent vs Agent";
+    if (challengerAgentId || challengedAgentId) return "Agent vs Human";
+    if (creatorAgentId || createdByAgent || agentInvolved) return "Created by Agent";
+    return null;
+  })();
+
+  const handleAvatarClick = (e: React.MouseEvent, profileId: string | undefined) => {
+    if (challenge.adminCreated || !profileId) return;
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to view user profiles",
+      });
+      login();
+      return;
+    }
+
+    setSelectedProfileId(profileId);
+    setShowProfileModal(true);
+  };
+
+  // Check if bonus is active
+  const isBonusActive =
+    challenge.bonusEndsAt && new Date(challenge.bonusEndsAt) > new Date();
+
+  const getBonusBadge = () => {
+    const bonuses: any[] = [];
+    
+    // Original weak side bonus
+    if (isBonusActive && challenge.bonusSide) {
+      const amount = challenge.bonusAmount ? `${challenge.bonusAmount.toLocaleString()}` : `${challenge.bonusMultiplier}x`;
+      bonuses.push({
+        type: "weak_side",
+        label: amount,
+        icon: <Zap className="w-3 h-3" />,
+        side: challenge.bonusSide,
+        description: `Bonus for ${challenge.bonusSide} side`
+      });
+    }
+
+    // Early Bird
+    if (challenge.earlyBirdSlots && challenge.earlyBirdSlots > 0) {
+      bonuses.push({
+        type: "early_bird",
+        label: "Early",
+        icon: <Zap className="w-3 h-3" />,
+        description: `Bonus for first ${challenge.earlyBirdSlots} users`
+      });
+    }
+
+    // Streak
+    if (challenge.streakBonusEnabled) {
+      bonuses.push({
+        type: "streak",
+        label: "Streak",
+        icon: <Trophy className="w-3 h-3" />,
+        description: "Win streak bonus active"
+      });
+    }
+
+    return bonuses;
+  };
+
+  const activeBonuses = getBonusBadge();
+
+  const acceptChallengeMutation = useMutation({
+    mutationFn: async () => {
+      const payload: Record<string, string> = {};
+      const settlementRailRaw =
+        challenge?.settlementRail ?? (challenge as any)?.settlement_rail ?? null;
+      const isOnchainChallenge =
+        String(settlementRailRaw || "").toLowerCase() === "onchain" ||
+        (isOnchainBuild && !settlementRailRaw);
+
+      if (isOnchainBuild && isOnchainChallenge && onchainConfig?.contractEnabled) {
+        const challengeChainId = Number(
+          challenge?.chainId ||
+            (challenge as any)?.chain_id ||
+            onchainConfig.defaultChainId,
+        );
+        const challengeToken = String(
+          challenge?.tokenSymbol ||
+            (challenge as any)?.token_symbol ||
+            onchainConfig.defaultToken,
+        ).toUpperCase() as OnchainTokenSymbol;
+
+        const preferredWalletAddress = (
+          [
+            (user as any)?.walletAddress,
+            (user as any)?.primaryWalletAddress,
+            (user as any)?.wallet?.address,
+            Array.isArray((user as any)?.walletAddresses)
+              ? (user as any)?.walletAddresses?.[0]
+              : null,
+          ].find((entry) => typeof entry === "string" && entry.trim().length > 0) || null
+        ) as string | null;
+
+        const escrowTx = await executeOnchainEscrowStakeTx({
+          wallets: wallets as any,
+          preferredWalletAddress,
+          onchainConfig,
+          chainId: challengeChainId,
+          challengeId: Number(challenge.id),
+          tokenSymbol: challengeToken,
+          amount: String(challenge.amount || "0"),
+          amountAtomic: String(challenge.stakeAtomic ?? (challenge as any).stake_atomic ?? ""),
+        });
+
+        payload.escrowTxHash = escrowTx.escrowTxHash;
+        payload.walletAddress = escrowTx.walletAddress;
+      }
+
+      return await apiRequest(
+        "POST",
+        `/api/challenges/${challenge.id}/accept`,
+        Object.keys(payload).length > 0 ? payload : undefined,
+      );
+    },
+    onSuccess: () => {
+      try {
+        sessionStorage.setItem(`challenge_accepted_${challenge.id}`, new Date().toISOString());
+      } catch {
+        // non-fatal; continue with redirect
+      }
+      toast({
+        title: "Challenge Accepted",
+        description: "Redirecting to chat...",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+      // Redirect to chat page after successful accept
+      setTimeout(() => {
+        navigate(`/challenges/${challenge.id}/chat?accepted=1`);
+      }, 450);
+    },
+    onError: (error: Error) => {
+      const isWalletRequired = /WALLET_REQUIRED|Wallet required|Connect an EVM wallet/i.test(
+        error.message || "",
+      );
+      toast({
+        title: isWalletRequired ? "Wallet required" : "Error",
+        description: isWalletRequired
+          ? "Connect an EVM wallet in Privy, then retry accepting this challenge."
+          : error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const declineChallengeMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PATCH", `/api/challenges/${challenge.id}`, {
+        status: "cancelled",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Challenge Declined",
+        description: "You have declined the challenge.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const pinChallengeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/challenges/${challenge.id}/pin`, {
+        pin: !challenge.isPinned
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: challenge.isPinned ? "Unpinned" : "Pinned",
+        description: challenge.isPinned ? "Challenge unpinned from top" : "Challenge pinned to top",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const isEnded = effectiveStatus === 'completed' || (challenge.dueDate && new Date(challenge.dueDate).getTime() <= Date.now());
+  const isFinishedChallengeCard =
+    isEnded ||
+    effectiveStatus === "completed" ||
+    effectiveStatus === "cancelled" ||
+    effectiveStatus === "disputed";
+
+  const getStatusBadge = (status: string) => {
+    if (challenge.adminCreated) {
+      if (status === "pending_admin" || status === "active") {
+        return (
+          <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300">
+            Awaiting Result
+          </Badge>
+        );
+      }
+      if (status === "completed") {
+        return (
+          <Badge className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300">
+            Ended
+          </Badge>
+        );
+      }
+      return null;
+    }
+
+    switch (status) {
+      // Pending status is intentionally not shown as a badge to avoid
+      // confusing users — newly created challenges are already 'created'.
+      // case "pending":
+      //   return (
+      //     <Badge className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300">
+      //       Pending
+      //     </Badge>
+      //   );
+      case "active":
+        return (
+          <Badge className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300">
+            {isFinishedChallengeCard ? "Ended" : "Live"}
+          </Badge>
+        );
+      case "completed":
+        return (
+          <Badge className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300">
+            Ended
+          </Badge>
+        );
+      case "disputed":
+        return (
+          <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300">
+            Disputed
+          </Badge>
+        );
+      case "cancelled":
+        return (
+          <Badge className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300">
+            Cancelled
+          </Badge>
+        );
+      case "pending_admin":
+        return (
+          <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 flex items-center gap-1 w-fit">
+            <Hourglass className="w-3 h-3" />
+            Payout
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Check if current user is a participant in this challenge
+  const isMyChallenge =
+    user?.id === challenge.challenger || user?.id === challenge.challenged;
+
+  // Display challenger vs challenged format for all challenges
+  // For admin-created open challenges with no users, show "Open Challenge"
+  const isOpenAdminChallenge =
+    challenge.adminCreated &&
+    effectiveStatus === "open" &&
+    !challenge.challenger &&
+    !challenge.challenged;
+
+  const challengerName =
+    getUserDisplayName({
+      id: challenge.challengerUser?.id,
+      firstName: challenge.challengerUser?.firstName,
+      username: challenge.challengerUser?.username,
+    }, "challenger");
+  const hasChallengedProfile = !!(
+    challenge.challengedUser?.id ||
+    challenge.challengedUser?.username ||
+    challenge.challengedUser?.firstName ||
+    challenge.challengedUser?.lastName
+  );
+  const challengedName =
+    (hasChallengedProfile
+      ? getUserDisplayName({
+          id: challenge.challengedUser?.id,
+          firstName: challenge.challengedUser?.firstName,
+          username: challenge.challengedUser?.username,
+        }, "opponent")
+      : targetedWalletAddress
+        ? shortenWallet(targetedWalletAddress)
+        : null) || "opponent";
+  const challengerHandle = getUserHandle({
+    id: challenge.challengerUser?.id,
+    username: challenge.challengerUser?.username,
+    firstName: challenge.challengerUser?.firstName,
+  }, "challenger");
+  const challengedHandle = getUserHandle({
+    id: challenge.challengedUser?.id,
+    username: challenge.challengedUser?.username,
+    firstName: challenge.challengedUser?.firstName,
+  }, targetedWalletAddress ? shortenWallet(targetedWalletAddress) : "opponent");
+  
+  // Show challenge title for all challenges - avatar pair at bottom shows who has joined
+  const isOpenChallenge = effectiveStatus === "open";
+  const displayName = challenge.title;
+  const communityName = typeof challenge.community?.name === "string" ? challenge.community.name.trim() : "";
+  const communityLogoUrl = typeof challenge.community?.logoUrl === "string" ? challenge.community.logoUrl.trim() : "";
+  const communityBadgeTextRaw = typeof challenge.community?.badgeText === "string" ? challenge.community.badgeText.trim() : "";
+  const communityBadgeText = (communityBadgeTextRaw || communityName.slice(0, 2) || "CM").toUpperCase().slice(0, 4);
+  const hasCommunityMeta = !!(communityName || communityBadgeTextRaw || communityLogoUrl);
+  const communityDisplayName = communityName || `Community ${communityBadgeText}`;
+  const settlementRail = String(
+    challenge.settlementRail || (challenge as any).settlement_rail || "",
+  ).toLowerCase();
+  const chainIdRaw = challenge.chainId ?? (challenge as any).chain_id;
+  const chainId = Number.isFinite(Number(chainIdRaw)) ? Number(chainIdRaw) : null;
+  const tokenSymbol = String(
+    challenge.tokenSymbol || (challenge as any).token_symbol || "",
+  ).toUpperCase();
+  const effectiveTokenSymbol = isOnchainBuild ? (tokenSymbol || "ETH") : tokenSymbol;
+  const showOnchainMeta = isOnchainBuild;
+
+  const getChainLabel = (id: number | null) => {
+    if (!id) return "";
+    if (id === 56) return "BNB Smart Chain";
+    if (id === 84532) return "Base";
+    if (id === 8453) return "Base";
+    if (id === 42161) return "Arbitrum One";
+    if (id === 130) return "Unichain";
+    if (id === 1301) return "Unichain";
+    if (id === 97) return "BNB Smart Chain";
+    if (id === 421614) return "Arbitrum One";
+    return `Chain ${id}`;
+  };
+  const chainLabel = getChainLabel(chainId);
+  const getChainIconMeta = (id: number | null) => {
+    if (!id) return null;
+    if (id === 56) {
+      return {
+        title: "BNB Smart Chain",
+        iconSrc: "/assets/chain-bsc.svg",
+        className: "border-amber-200 dark:border-amber-700/60",
+      };
+    }
+    if (id === 84532) {
+      return {
+        title: "Base",
+        iconSrc: "/assets/chain-base.svg",
+        className: "border-sky-200 dark:border-sky-700/60",
+      };
+    }
+    if (id === 8453) {
+      return {
+        title: "Base",
+        iconSrc: "/assets/base-icon-1024.png",
+        className: "border-sky-200 dark:border-sky-700/60",
+      };
+    }
+    if (id === 421614) {
+      return {
+        title: "Arbitrum One",
+        iconSrc: "/assets/chain-arbitrum.svg",
+        className: "border-blue-200 dark:border-blue-700/60",
+      };
+    }
+    if (id === 42161) {
+      return {
+        title: "Arbitrum One",
+        iconSrc: "/assets/chain-arbitrum.svg",
+        className: "border-blue-200 dark:border-blue-700/60",
+      };
+    }
+    if (id === 97) {
+      return {
+        title: "BNB Smart Chain",
+        iconSrc: "/assets/chain-bsc.svg",
+        className: "border-amber-200 dark:border-amber-700/60",
+      };
+    }
+    if (id === 130 || id === 1301) {
+      return {
+        title: "Unichain",
+        iconSrc: "/assets/chain-unichain.svg",
+        className: "border-pink-200 dark:border-pink-700/60",
+      };
+    }
+    return {
+      title: `Chain ${id}`,
+      iconSrc: "",
+      glyph: "C",
+      className:
+        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700",
+    };
+  };
+  const chainIconMeta = getChainIconMeta(chainId);
+  const stakeAmount = parseFloat(String(challenge.amount)) || 0;
+  const decimalsRaw =
+    challenge.decimals ?? (challenge as any).decimals ?? 18;
+  const stakeDecimals = Number.isFinite(Number(decimalsRaw))
+    ? Number(decimalsRaw)
+    : 18;
+  const stakeAtomicRaw = String(
+    challenge.stakeAtomic ?? (challenge as any).stake_atomic ?? "",
+  ).trim();
+  const hasAtomicStake =
+    showOnchainMeta &&
+    /^\d+$/.test(stakeAtomicRaw) &&
+    Number.isInteger(stakeDecimals) &&
+    stakeDecimals >= 0 &&
+    stakeDecimals <= 36;
+  const bonusMultiplier = parseFloat(String(challenge.bonusMultiplier || "1")) || 1;
+  const potentialWinAmount = stakeAmount * 2 * bonusMultiplier;
+  const formatAssetAmount = (value: number) => {
+    if (!Number.isFinite(value)) return "0";
+    const absolute = Math.abs(value);
+    const maxFractionDigits = absolute >= 1000 ? 2 : absolute >= 1 ? 4 : 8;
+    return value.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: maxFractionDigits,
+    });
+  };
+  const formatAtomicUnits = (atomic: bigint, decimals: number) => {
+    if (decimals <= 0) return atomic.toString();
+    const base = BigInt(10) ** BigInt(decimals);
+    const whole = atomic / base;
+    const fraction = atomic % base;
+    let fractionText = fraction.toString().padStart(decimals, "0").replace(/0+$/, "");
+    if (fractionText.length > 8) {
+      fractionText = fractionText.slice(0, 8).replace(/0+$/, "");
+    }
+    return fractionText ? `${whole.toString()}.${fractionText}` : whole.toString();
+  };
+  const onchainStakeDisplayValue = (() => {
+    if (!hasAtomicStake || !effectiveTokenSymbol) return null;
+    try {
+      return `${formatAtomicUnits(BigInt(stakeAtomicRaw), stakeDecimals)} ${effectiveTokenSymbol}`;
+    } catch {
+      return null;
+    }
+  })();
+  const onchainWinDisplayValue = (() => {
+    if (!hasAtomicStake || !effectiveTokenSymbol) return null;
+    try {
+      const winAtomic = BigInt(stakeAtomicRaw) * BigInt(2);
+      return `${formatAtomicUnits(winAtomic, stakeDecimals)} ${effectiveTokenSymbol}`;
+    } catch {
+      return null;
+    }
+  })();
+  const stakeDisplayValue =
+    showOnchainMeta && !!effectiveTokenSymbol
+      ? onchainStakeDisplayValue || "Unavailable"
+      : `${stakeAmount.toLocaleString()}`;
+  const winDisplayValue =
+    showOnchainMeta && !!effectiveTokenSymbol
+      ? onchainWinDisplayValue || "Unavailable"
+      : `${Math.round(potentialWinAmount).toLocaleString()}`;
+
+  // For avatar, show the other user (opponent) if current user is involved, otherwise show challenger
+  const otherUser =
+    user?.id === challenge.challenger
+      ? challenge.challengedUser
+      : user?.id === challenge.challenged
+        ? challenge.challengerUser
+        : challenge.challengerUser;
+
+  // Helper function to get status text for the card
+  const getStatusText = () => {
+    switch (effectiveStatus) {
+      case "pending":
+        return "Waiting for your response";
+      case "active":
+        return "Challenge in progress";
+      case "completed":
+        return "Challenge concluded";
+      case "disputed":
+        return "Challenge disputed";
+      case "cancelled":
+        return "Challenge cancelled";
+      case "pending_admin":
+        return "Processing payout";
+      default:
+        return effectiveStatus;
+    }
+  };
+
+  // Helper function for compact time format
+  const getCompactTimeAgo = (date: string) => {
+    const now = new Date();
+    const created = new Date(date);
+    const diffMs = now.getTime() - created.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+
+    const diffWeeks = Math.floor(diffDays / 7);
+    return `${diffWeeks}w`;
+  };
+
+  const getOrdinalDay = (day: number) => {
+    const remainder = day % 100;
+    if (remainder >= 11 && remainder <= 13) return `${day}th`;
+    switch (day % 10) {
+      case 1:
+        return `${day}st`;
+      case 2:
+        return `${day}nd`;
+      case 3:
+        return `${day}rd`;
+      default:
+        return `${day}th`;
+    }
+  };
+
+  const getChallengeEndsLabel = (dueDate?: string, createdAt?: string) => {
+    if (!dueDate) {
+      return createdAt ? `Created ${getCompactTimeAgo(createdAt)}` : "No end date";
+    }
+
+    const due = new Date(dueDate);
+    const dueMs = due.getTime();
+    if (Number.isNaN(dueMs)) {
+      return createdAt ? `Created ${getCompactTimeAgo(createdAt)}` : "No end date";
+    }
+
+    const nowMs = Date.now();
+    const diffMs = dueMs - nowMs;
+
+    if (diffMs <= 0) {
+      return `Ended ${getOrdinalDay(due.getDate())} ${due.toLocaleString("en-US", { month: "long" })}`;
+    }
+
+    const minutesLeft = Math.ceil(diffMs / 60000);
+    if (minutesLeft < 60) {
+      return `Ends in ${minutesLeft}m`;
+    }
+
+    const hoursLeft = Math.ceil(diffMs / 3600000);
+    if (hoursLeft <= 24) {
+      return `Ends in ${hoursLeft}h`;
+    }
+
+    return `Ends ${getOrdinalDay(due.getDate())} ${due.toLocaleString("en-US", { month: "long" })}`;
+  };
+
+  const isHeadToHeadMatched = !challenge.adminCreated && !!challenge.challenger && !!challenge.challenged;
+  const isUpDownMarket = isUpDownMarketChallenge(challenge);
+  const adminYesLabel = isUpDownMarket ? "Up" : "Yes";
+  const adminNoLabel = isUpDownMarket ? "Down" : "No";
+  const hasJoined = user?.id === challenge.challenger || user?.id === challenge.challenged;
+  const isAwaitingAcceptance = effectiveStatus === "open" || effectiveStatus === "pending";
+  const challengedId = typeof (challenge as any).challenged === "string"
+    ? String((challenge as any).challenged).trim()
+    : (challenge as any).challenged;
+  const hasDesignatedOpponent = !!challengedId || !!targetedWalletAddress;
+  const isTargetWalletHolder =
+    !!targetedWalletAddress && connectedWallets.includes(targetedWalletAddress);
+  const showWaitingOpponent =
+    !challenge.adminCreated &&
+    effectiveStatus === "open" &&
+    !hasDesignatedOpponent &&
+    !hasChallengedProfile;
+  const canAcceptChallenge =
+    !challenge.adminCreated &&
+    !isEnded &&
+    isAwaitingAcceptance &&
+    !hasJoined &&
+    (!hasDesignatedOpponent || (user && user.id === challengedId) || isTargetWalletHolder);
+
+  // Normalize challenger/challenged side fields (support multiple possible field names)
+  const challengerSideRaw = (challenge.challengerSide || (challenge as any).challenger_side || (challenge as any).challengerChoice || (challenge as any).challenger_choice) ?? null;
+  const challengedSideRaw = (challenge.challengedSide || (challenge as any).challenged_side || (challenge as any).challengedChoice || (challenge as any).challenged_choice) ?? null;
+  let challengerSide = challengerSideRaw ? String(challengerSideRaw).trim().toUpperCase() : null;
+  let challengedSide = challengedSideRaw ? String(challengedSideRaw).trim().toUpperCase() : null;
+
+  // Backfill side display for legacy rows where only one side is stored.
+  if (!challengerSide && (challengedSide === "YES" || challengedSide === "NO")) {
+    challengerSide = challengedSide === "YES" ? "NO" : "YES";
+  }
+  if (!challengedSide && (challengerSide === "YES" || challengerSide === "NO") && !!challenge.challenged) {
+    challengedSide = challengerSide === "YES" ? "NO" : "YES";
+  }
+
+  if (challengerSide !== "YES" && challengerSide !== "NO") challengerSide = null;
+  if (challengedSide !== "YES" && challengedSide !== "NO") challengedSide = null;
+
+  const isValidParticipantId = (id: unknown): id is string => {
+    if (typeof id !== "string") return false;
+    const normalized = id.trim().toLowerCase();
+    return normalized.length > 0 && normalized !== "null" && normalized !== "undefined";
+  };
+  const adminPreviewUsers = Array.isArray(challenge.participantPreviewUsers)
+    ? challenge.participantPreviewUsers
+        .filter((p) => p && isValidParticipantId(p.id))
+        .filter((p, index, arr) => arr.findIndex((entry) => entry.id === p.id) === index)
+        .slice(0, 2)
+    : [];
+  const adminDisplayedUsers = adminPreviewUsers;
+  const normalizedParticipantCount = Number.isFinite(Number(challenge.participantCount))
+    ? Number(challenge.participantCount)
+    : 0;
+  const adminParticipantCount = Math.max(
+    normalizedParticipantCount,
+    adminDisplayedUsers.length,
+  );
+  const adminRenderedPreviewCount = adminDisplayedUsers.length > 0 ? adminDisplayedUsers.length : (adminParticipantCount > 0 ? 1 : 0);
+  const adminExtraCount = Math.max(adminParticipantCount - adminRenderedPreviewCount, 0);
+
+  const normalizedResult = String(challenge.result || "").toLowerCase();
+  const challengerIsWinner = normalizedResult === "challenger_won";
+  const challengedIsWinner = normalizedResult === "challenged_won";
+
+  // Do not make the whole card clickable. Only the action buttons (Join, Chat, Share)
+  // should be interactive to avoid accidental opens of modals or chat.
+  const cardClickProps = {};
+
+  return (
+    <Card
+      className="border border-slate-200 dark:border-slate-600 theme-transition h-full overflow-hidden"
+      {...cardClickProps}
+    >
+      <CardContent className="p-2 md:p-3 flex flex-col h-full">
+        <div className="flex items-start justify-between gap-1.5 mb-1.5">
+          <div className="flex items-start space-x-2 min-w-0 flex-1">
+            {/* Show cover art for all challenges */}
+            {normalizedCoverImageUrl && !coverImageFailed ? (
+              <div className="flex items-center flex-shrink-0">
+                <img
+                  key={normalizedCoverImageUrl}
+                  src={normalizedCoverImageUrl}
+                  alt="challenge cover"
+                  className="w-9 h-9 md:w-10 md:h-10 rounded-md object-cover"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={() => setCoverImageFailed(true)}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center flex-shrink-0">
+                <img
+                  src="/assets/bantahblue.svg"
+                  alt="platform"
+                  className="w-9 h-9 md:w-10 md:h-10"
+                />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              {isFinishedChallengeCard ? (
+                <span className="block font-bold text-xs md:text-[13px] text-slate-900 dark:text-slate-100 line-clamp-2 mb-0 text-left w-full max-h-10 md:max-h-12 overflow-hidden">
+                  {String(challenge.title)}
+                </span>
+              ) : (
+                <button
+                  onClick={() => navigate(`/challenges/${challenge.id}/activity`)}
+                  className="font-bold text-xs md:text-[13px] text-slate-900 dark:text-slate-100 line-clamp-2 mb-0 hover:text-primary dark:hover:text-primary/80 transition-colors text-left w-full max-h-10 md:max-h-12 overflow-hidden"
+                  data-testid="link-challenge-detail"
+                >
+                  {String(challenge.title)}
+                </button>
+              )}
+              <div className="mt-0.5 flex items-center gap-1 text-[9px] font-semibold text-slate-400 dark:text-slate-500">
+                <span>{getChallengeEndsLabel(challenge.dueDate, challenge.createdAt)}</span>
+                {isUpDownMarket && (
+                  <>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                      BTC
+                      <span className="text-[8px] opacity-80">5m</span>
+                    </span>
+                  </>
+                )}
+                {showOnchainMeta && chainLabel && chainIconMeta && (
+                  <>
+                    <span>•</span>
+                    <span
+                      title={chainIconMeta.title}
+                      aria-label={chainIconMeta.title}
+                      className={`inline-flex h-4 w-4 items-center justify-center rounded-full border overflow-hidden ${chainIconMeta.className}`}
+                    >
+                      {chainIconMeta.iconSrc ? (
+                        <img
+                          src={chainIconMeta.iconSrc}
+                          alt={chainIconMeta.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-[8px] font-bold leading-none">{(chainIconMeta as any).glyph || "C"}</span>
+                      )}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5 flex-shrink-0 flex-wrap">
+            <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-0.5">
+              {effectiveStatus === "open" && isEnded && (
+                <Badge className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-none text-[10px] px-2 py-0.5">
+                  Ended
+                </Badge>
+              )}
+              {effectiveStatus !== "open" && getStatusBadge(effectiveStatus)}
+              {canAcceptChallenge && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAcceptModal(true);
+                  }}
+                  className="text-[10px] px-2 py-0.5 ml-1 rounded border border-transparent bg-emerald-500 text-white hover:bg-emerald-600"
+                >
+                  Accept
+                </button>
+              )}
+              {/* P2P badge removed - UI simplified */}
+              {/* Bonus badges - show right before share icon */}
+              {activeBonuses.map((bonus, idx) => (
+                <Badge key={idx} variant="secondary" className="text-[9px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-none px-1.5 py-0.5">
+                  {bonus.icon}
+                  <span className="ml-0.5 font-bold">{bonus.label}</span>
+                </Badge>
+              ))}
+              {agentMarketLabel && (
+                <Badge className="border-none bg-transparent text-slate-600 dark:text-slate-300 text-[9px] px-1.5 py-0.5">
+                  <span className="inline-flex items-center justify-center">
+                    <AgentIcon className="h-3 w-3" alt="" />
+                  </span>
+                  {agentMarketLabel === "Created by Agent" ? null : (
+                    <span className="ml-1">{agentMarketLabel}</span>
+                  )}
+                </Badge>
+              )}
+            </div>
+            {/* Admin pin button */}
+            {(user as any)?.isAdmin && challenge.adminCreated && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  pinChallengeMutation.mutate();
+                }}
+                data-testid="button-pin-challenge"
+                className="text-primary hover:scale-110 transition-transform flex-shrink-0"
+                title={challenge.isPinned ? "Unpin from top" : "Pin to top"}
+              >
+                <Pin className={`h-4 w-4 ${challenge.isPinned ? "fill-current" : ""}`} />
+              </button>
+            )}
+            {/* Always show share button */}
+            <div onClick={(e) => e.stopPropagation()}>
+              <SocialMediaShare
+                challenge={{
+                  id: challenge.id,
+                  title: challenge.title,
+                  amount: challenge.amount,
+                  tokenSymbol: challenge.tokenSymbol,
+                  status: challenge.status,
+                  dueDate: challenge.dueDate,
+                  challengerSide: challenge.challengerSide,
+                  challengedSide: challenge.challengedSide,
+                  challengerUser: challenge.challengerUser,
+                  challengedUser: challenge.challengedUser,
+                  challengerAgent: (challenge as any).challengerAgent,
+                  challengedAgent: (challenge as any).challengedAgent,
+                  chainId: (challenge as any).chainId,
+                  updatedAt: (challenge as any).updatedAt || challenge.createdAt,
+                }}
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary h-8 w-8 p-0 hover:scale-110 transition-transform flex-shrink-0"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <path d="M8.59 13.51 15.42 17.49" />
+                      <path d="M15.41 6.51 8.59 10.49" />
+                    </svg>
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-2">
+          {!challenge.adminCreated ? (
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-800/30 rounded-lg py-2 px-3 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center relative">
+                    <UserAvatar 
+                      userId={challenge.challengerUser?.id || ""} 
+                      username={challenge.challengerUser?.username || challengerName}
+                      firstName={challenge.challengerUser?.firstName}
+                      profileImageUrl={challenge.challengerUser?.profileImageUrl}
+                      size={36}
+                      className={`w-9 h-9 ring-2 ring-white dark:ring-slate-800 shadow-sm ${!challenge.adminCreated ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      onClick={(e) => handleAvatarClick(e, challenge.challengerUser?.id)}
+                    />
+                    {challengerSide && (
+                      <span className={`absolute -top-1 -right-1 text-[9px] px-1 py-0.5 rounded-full font-bold ${challengerSide === 'YES' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                        {challengerSide}
+                      </span>
+                    )}
+                    {isFinishedChallengeCard && challengerIsWinner && (
+                      <span className="absolute -bottom-1 -right-1 text-[7px] px-1 py-[1px] rounded-full font-black bg-amber-400 text-black border border-white dark:border-slate-900 leading-none">
+                        WIN
+                      </span>
+                    )}
+                    <div className="mt-1 flex items-center gap-1 max-w-[60px]">
+                      <span className="text-[8px] font-semibold text-slate-500 truncate max-w-[48px]">{challengerHandle}</span>
+                      <span
+                        className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-sky-100 dark:bg-sky-900/40 text-[7px] font-black text-sky-700 dark:text-sky-300 flex-shrink-0"
+                        title="Challenger"
+                        aria-label="Challenger"
+                      >
+                        C
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-center">
+                    <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 italic uppercase leading-none">VS</span>
+                  </div>
+
+                  <div className="flex flex-col items-center relative">
+                    {showWaitingOpponent ? (
+                      <div className="w-9 h-9 ring-2 ring-white dark:ring-slate-800 shadow-sm rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-300">
+                        ?
+                      </div>
+                    ) : (
+                      <UserAvatar
+                        userId={challenge.challengedUser?.id || ""}
+                        username={challenge.challengedUser?.username || challengedName}
+                        firstName={challenge.challengedUser?.firstName}
+                        profileImageUrl={challenge.challengedUser?.profileImageUrl}
+                        size={36}
+                        className={`w-9 h-9 ring-2 ring-white dark:ring-slate-800 shadow-sm ${!challenge.adminCreated ? 'cursor-pointer hover:opacity-80' : ''}`}
+                        onClick={(e) => handleAvatarClick(e, challenge.challengedUser?.id)}
+                      />
+                    )}
+                    {!showWaitingOpponent && challengedSide && (
+                      <span className={`absolute -top-1 -right-1 text-[9px] px-1 py-0.5 rounded-full font-bold ${challengedSide === 'YES' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                        {challengedSide}
+                      </span>
+                    )}
+                    {isFinishedChallengeCard && challengedIsWinner && !showWaitingOpponent && (
+                      <span className="absolute -bottom-1 -right-1 text-[7px] px-1 py-[1px] rounded-full font-black bg-amber-400 text-black border border-white dark:border-slate-900 leading-none">
+                        WIN
+                      </span>
+                    )}
+                    <span className="text-[8px] font-semibold text-slate-500 mt-1 truncate max-w-[56px]">
+                      {showWaitingOpponent ? "waiting" : challengedHandle}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 w-full">
+              {/* Regular Admin Challenges: Show Yes/No buttons */}
+              {effectiveStatus === 'open' && (
+                <div className="flex flex-row items-center justify-center h-10 gap-2 w-full">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if ((challenge.status !== "completed" && challenge.status !== "ended") && !hasJoined) {
+                        onJoin?.({ ...challenge, selectedSide: "yes" });
+                      }
+                    }}
+                    disabled={challenge.status === "completed" || challenge.status === "ended" || hasJoined}
+                    className={`flex items-center justify-center text-sm font-bold rounded-lg py-2 flex-1 transition-opacity ${
+                      (challenge.status !== "completed" && challenge.status !== "ended") && !hasJoined
+                        ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 dark:bg-emerald-500/20 hover:opacity-80 cursor-pointer"
+                        : "text-emerald-600/40 dark:text-emerald-400/40 bg-emerald-500/5 dark:bg-emerald-500/10 cursor-not-allowed"
+                    }`}
+                    data-testid="button-challenge-yes"
+                  >
+                    {adminYesLabel}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if ((challenge.status !== "completed" && challenge.status !== "ended") && !hasJoined) {
+                        onJoin?.({ ...challenge, selectedSide: "no" });
+                      }
+                    }}
+                    disabled={challenge.status === "completed" || challenge.status === "ended" || hasJoined}
+                    className={`flex items-center justify-center text-sm font-bold rounded-lg py-2 flex-1 transition-opacity ${
+                      (challenge.status !== "completed" && challenge.status !== "ended") && !hasJoined
+                        ? "text-red-600 dark:text-red-400 bg-red-500/15 dark:bg-red-500/20 hover:opacity-80 cursor-pointer"
+                        : "text-red-600/40 dark:text-red-400/40 bg-red-500/5 dark:bg-red-500/10 cursor-not-allowed"
+                    }`}
+                    data-testid="button-challenge-no"
+                  >
+                    {adminNoLabel}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!isUpDownMarket && (
+          <div className="flex items-center justify-between gap-1 mb-1.5">
+            <Badge variant="outline" className="flex flex-col items-center py-0.5 px-2 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 rounded-lg h-auto min-w-[60px] shadow-sm">
+              <span className="text-[8px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-tight mb-0">Stake</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-none">{stakeDisplayValue}</span>
+            </Badge>
+            <Badge variant="outline" className="flex flex-col items-center py-0.5 px-2 bg-emerald-50/40 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/50 rounded-lg h-auto min-w-[60px] shadow-sm">
+              <span className="text-[8px] text-emerald-600/70 dark:text-emerald-400/70 uppercase font-bold tracking-tight mb-0">Win</span>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 leading-none">{winDisplayValue}</span>
+            </Badge>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Only show chat count for admin-created challenges */}
+            {challenge.adminCreated && (
+              <div className="flex items-center gap-1.5 bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     if (onChatClick) onChatClick({ ...challenge, amount: String(challenge.amount) });
+                   }}>
+                <MessageCircle className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[10px] text-slate-700 dark:text-slate-300 font-bold">
+                  {challenge.commentCount ?? 0}
+                </span>
+              </div>
+            )}
+
+            {challenge.adminCreated && isUpDownMarket && (
+              <div className="flex items-center gap-1.5 bg-red-50/70 dark:bg-red-900/30 px-2 py-1 rounded-full">
+                <span className="relative inline-flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
+                </span>
+                <span className="text-[10px] font-bold text-red-600 dark:text-red-300">LIVE</span>
+              </div>
+            )}
+
+            {/* Only show participant avatars and count for admin-created challenges */}
+            {challenge.adminCreated && (
+              <div className="flex items-center gap-0.5 bg-slate-100/50 dark:bg-slate-800/50 px-1.5 py-1 rounded-full">
+                <div className="flex items-center -space-x-1.5">
+                  {adminDisplayedUsers.length === 0 && adminParticipantCount > 0 && (
+                    <div className="relative flex-shrink-0">
+                      <UserAvatar
+                        seed={`participants-${challenge.id}`}
+                        username="participant"
+                        size={16}
+                        className="w-4 h-4 ring-1 ring-white dark:ring-slate-800"
+                      />
+                    </div>
+                  )}
+
+                  {adminDisplayedUsers.map((participant, index) => {
+                    const participantSideRaw = participant.side ? String(participant.side).toUpperCase() : null;
+                    const participantSide = participantSideRaw === "YES" || participantSideRaw === "NO" ? participantSideRaw : null;
+                    return (
+                      <div key={`${participant.id}-${index}`} className="relative flex-shrink-0">
+                        <UserAvatar
+                          userId={participant.id}
+                          username={participant.username || undefined}
+                          firstName={participant.firstName || undefined}
+                          profileImageUrl={participant.profileImageUrl || undefined}
+                          size={16}
+                          className="w-4 h-4 ring-1 ring-white dark:ring-slate-800"
+                        />
+                        {participantSide && (
+                          <span className={`absolute -top-1 -right-1 text-[6px] leading-none px-1 py-[1px] rounded-full font-bold ${participantSide === 'YES' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                            {participantSide}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {adminExtraCount > 0 && (
+                    <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 ring-1 ring-white dark:ring-slate-800 flex items-center justify-center -ml-1">
+                      <span className="text-[7px] font-bold text-slate-600 dark:text-slate-400">
+                        +{adminExtraCount}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-700 dark:text-slate-300 font-bold ml-1">
+                  {adminParticipantCount}
+                </span>
+              </div>
+            )}
+          </div>
+          {hasCommunityMeta && (
+            <div className="inline-flex items-center gap-1 rounded-full px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 max-w-[48%]">
+              <span className="relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-300 dark:bg-slate-600 text-[7px] font-black text-slate-800 dark:text-slate-200 overflow-hidden flex-shrink-0">
+                <span>{communityBadgeText}</span>
+                {communityLogoUrl && (
+                  <img
+                    src={communityLogoUrl}
+                    alt={`${communityDisplayName} badge`}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                )}
+              </span>
+              <span className="text-[10px] font-semibold truncate">
+                {communityDisplayName}
+              </span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+
+      {showProfileModal && selectedProfileId && (
+        <ProfileCard 
+          userId={selectedProfileId} 
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
+
+      {!challenge.adminCreated && (
+        <AcceptChallengeModal
+          isOpen={showAcceptModal}
+          onClose={() => setShowAcceptModal(false)}
+          challenge={challenge}
+          onAccept={() => acceptChallengeMutation.mutateAsync()}
+          isSubmitting={acceptChallengeMutation.isPending}
+        />
+      )}
+    </Card>
+  );
+}
+
+

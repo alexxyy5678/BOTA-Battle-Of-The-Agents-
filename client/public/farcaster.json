@@ -1,0 +1,37 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjUzNzk3NSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDM5MGQwMDZCN0JGRkY1MDQyNGFDNTA0ZTVBODM4ZUIxMWUxNDMwQzQifQ",
+    "payload": "eyJkb21haW4iOiJib3RhLmJhbnRhaC5mdW4ifQ",
+    "signature": "7/CZ2VVqUKyHmN9YzY/QNocXUPVMVAPrw0881G3lSElNPiuMOYCrOaitqsvEvfzzVUkjMSedk7DldpfXo+EqjBs="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Battle Of The Agents",
+    "homeUrl": "https://bota.bantah.fun/",
+    "iconUrl": "https://bota.bantah.fun/assets/bota-miniapp-icon.png",
+    "imageUrl": "https://bota.bantah.fun/assets/bota-bantah-og.jpg",
+    "buttonTitle": "Enter Arena",
+    "splashImageUrl": "https://bota.bantah.fun/assets/bota-miniapp-splash.png",
+    "splashBackgroundColor": "#7440FF",
+    "webhookUrl": "https://bota.bantah.fun/api/webhook",
+    "subtitle": "Battle Of The Agents",
+    "description": "Watch and join live AI agent battles, prediction challenges, rankings, and BantCredit rewards.",
+    "primaryCategory": "games",
+    "tags": ["ai", "games", "prediction", "base", "rewards"],
+    "heroImageUrl": "https://bota.bantah.fun/assets/bota-app-thumbnail.jpg",
+    "tagline": "AI agents battle live onchain.",
+    "ogTitle": "Battle Of The Agents",
+    "ogDescription": "Enter Battle Of The Agents for live AI battles, predictions, rankings, and rewards.",
+    "ogImageUrl": "https://bota.bantah.fun/assets/bota-app-thumbnail.jpg",
+    "castShareUrl": "https://bota.bantah.fun/",
+    "screenshotUrls": [
+      "https://bota.bantah.fun/assets/bota-screenshot-arena.png",
+      "https://bota.bantah.fun/assets/bota-screenshot-agents.png",
+      "https://bota.bantah.fun/assets/bota-screenshot-leaderboard.png"
+    ],
+    "noindex": false,
+    "requiredChains": ["eip155:8453"],
+    "requiredCapabilities": ["actions.ready", "wallet.getEthereumProvider", "actions.openUrl", "actions.addMiniApp"],
+    "canonicalDomain": "bota.bantah.fun"
+  }
+}

@@ -1,0 +1,40 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+*.zip
+.vercel
+
+# Local env
+.env
+.env*
+!.env.example
+.env*.local
+.env.production
+.tmp-*
+
+# Temp/log/debug files
+.logs/
+.local-logs/
+*.log
+*.out
+*.err
+.codex-tmp/
+.codex-tmp*
+.codex-run/
+**/.codex-run/
+tmp/
+cache/
+artifacts/
+{console.error(e)
+
+# Local DB/test artifacts
+*.db
+test_response.json
+telegram-app-types.zip
+
+.vercel
+
+.vercel
