@@ -37,6 +37,7 @@ import { useBotaInventory } from '@/hooks/useBotaInventory'
 import { BotaInventoryBrowser } from '@/components/BotaInventoryBrowser'
 import { useUnopenedPacks, usePackHistory } from '@/hooks/useGen1Packs'
 import { BotaPackOpener } from '@/components/BotaPackOpener'
+import { formatAgentName } from '@/lib/utils'
 
 type OnchainBantCreditClaim = {
   id: string
@@ -216,6 +217,22 @@ export default function ProfilePage() {
     staleTime: 5_000,
     refetchInterval: 15_000,
   })
+  const { data: kothData } = useQuery<{ participants: any[] }>({
+    queryKey: ['/api/bantahbro/koth/participants'],
+    queryFn: () => apiRequest('GET', '/api/bantahbro/koth/participants'),
+    enabled: isAuthenticated,
+    refetchInterval: 5_000,
+  })
+  const toggleKothMutation = useMutation({
+    mutationFn: async (agentId: string) => apiRequest('POST', `/api/bantahbro/koth/agents/${encodeURIComponent(agentId)}/toggle-auto`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/koth/participants'] })
+      toast({ title: 'Success', description: 'KOTH auto-join preference updated.' })
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' })
+    }
+  })
   const { data: onchainConfig } = useQuery<OnchainRuntimeConfig>({
     queryKey: ['/api/onchain/config'],
     queryFn: () => apiRequest('GET', '/api/onchain/config'),
@@ -262,8 +279,8 @@ export default function ProfilePage() {
     const liveRows = liveBattleRows.map((row) => ({
       id: `timeline:${row.id}`,
       result: 'live' as const,
-      agentName: row.agentName,
-      opponentName: row.opponentName,
+      agentName: formatAgentName(row.agentName),
+      opponentName: row.opponentName ? formatAgentName(row.opponentName) : null,
       title: row.title,
       resolvedAt: row.startsAt,
       url: row.arenaUrl,
@@ -271,8 +288,8 @@ export default function ProfilePage() {
     const queuedRows = queueRows.map((row) => ({
       id: `timeline:${row.id}`,
       result: 'queued' as const,
-      agentName: row.agentName,
-      opponentName: row.opponentName,
+      agentName: formatAgentName(row.agentName),
+      opponentName: row.opponentName ? formatAgentName(row.opponentName) : null,
       title: row.title,
       resolvedAt: row.startsAt,
       url: row.arenaUrl,
@@ -280,8 +297,8 @@ export default function ProfilePage() {
     const recordRows = (profileData?.history || []).map((row) => ({
       id: `timeline:${row.id}`,
       result: row.result,
-      agentName: row.agentName,
-      opponentName: row.opponentName,
+      agentName: formatAgentName(row.agentName),
+      opponentName: row.opponentName ? formatAgentName(row.opponentName) : null,
       title: row.title,
       resolvedAt: row.resolvedAt,
       rounds: row.rounds,
@@ -547,16 +564,35 @@ export default function ProfilePage() {
                       className="h-12 w-12 rounded border border-border bg-card object-cover"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-black text-foreground">{fighter.displayName}</div>
+                      <div className="truncate text-sm font-black text-foreground">{formatAgentName(fighter.displayName)}</div>
                       <div className="mt-0.5 truncate text-xs text-muted-foreground">
                         {fighter.badgeLabel || fighter.origin} / #{fighter.rank || '-'}
                       </div>
+                      {kothData?.participants?.find(p => p.agentId === fighter.agentId)?.status === 'queued' && (
+                        <div className="mt-1 inline-flex items-center gap-1 rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-black text-primary">
+                          🛡️ Queued for KOTH
+                        </div>
+                      )}
+                      {kothData?.participants?.find(p => p.agentId === fighter.agentId)?.status === 'live' && (
+                        <div className="mt-1 inline-flex items-center gap-1 rounded bg-green-500/20 px-1.5 py-0.5 text-[10px] font-black text-green-500">
+                          ⚔️ Live in KOTH
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-1 text-right text-xs">
                         <div>
                           <div className="font-black text-foreground">{fighter.wins}W-{fighter.losses}L</div>
                           <div className="font-mono text-yellow-300">{formatNumber(fighter.bantCreditsEarned)} BC</div>
                         </div>
+                        <Button 
+                          size="sm" 
+                          variant={kothData?.participants?.find(p => p.agentId === fighter.agentId)?.autoJoin ? "default" : "outline"} 
+                          className="h-6 text-[10px] px-2 uppercase mt-1 mb-1"
+                          onClick={() => toggleKothMutation.mutate(fighter.agentId)}
+                          disabled={toggleKothMutation.isPending}
+                        >
+                          {kothData?.participants?.find(p => p.agentId === fighter.agentId)?.autoJoin ? '✅ Auto-Join KOTH' : 'Auto-Join KOTH'}
+                        </Button>
                         <Button 
                           size="sm" 
                           variant="outline" 
@@ -592,7 +628,7 @@ export default function ProfilePage() {
                       </a>
                     </div>
                     <div className="mt-2 truncate text-sm font-black text-foreground">
-                      {row.opponentName ? `${row.agentName} vs ${row.opponentName}` : row.agentName}
+                      {row.opponentName ? `${formatAgentName(row.agentName)} vs ${formatAgentName(row.opponentName)}` : formatAgentName(row.agentName)}
                     </div>
                     {!row.opponentName ? (
                       <div className="mt-1 text-xs font-bold text-muted-foreground">
@@ -619,7 +655,7 @@ export default function ProfilePage() {
                       <span className="text-[11px] font-bold text-muted-foreground">{formatDate(row.resolvedAt)}</span>
                     </div>
                     <div className="mt-2 truncate text-sm font-black text-foreground">
-                      {row.opponentName ? `${row.agentName} vs ${row.opponentName}` : row.agentName}
+                      {row.opponentName ? `${formatAgentName(row.agentName)} vs ${formatAgentName(row.opponentName)}` : formatAgentName(row.agentName)}
                     </div>
                     {row.result === 'queued' ? (
                       <div className="mt-1 text-xs text-muted-foreground">

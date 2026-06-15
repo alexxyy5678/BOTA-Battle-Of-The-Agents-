@@ -32,7 +32,7 @@
   --input: var(--bb-input);
   --ring: #8449ff;
   --primary: var(--bb-primary);
-  --primary-foreground: #ffffff;
+  --primary-foreground: var(--bb-foreground);
   --secondary: var(--bb-secondary);
   --secondary-foreground: var(--bb-background);
   --accent: var(--bb-accent);
@@ -42,7 +42,7 @@
   --sidebar-background: var(--bb-sidebar);
   --sidebar-foreground: var(--bb-foreground);
   --sidebar-primary: hsl(var(--bb-primary));
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary-foreground: var(--bb-foreground);
   --sidebar-accent: var(--bb-sidebar-accent);
   --sidebar-accent-foreground: var(--bb-foreground);
   --sidebar-border: var(--bb-border);

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { formatAgentName } from "@/lib/utils";
 
 import { AgentIcon } from "@/components/AgentIcon";
 import { AgentAvatar } from "@/components/AgentAvatar";
@@ -446,7 +447,7 @@ export default function Agents() {
                         </Badge>
                         <div className="space-y-2">
                           <h2 className="max-w-xs text-[2rem] font-medium leading-[1] tracking-[-0.06em] text-slate-950">
-                            {featuredAgent.agentName}
+                            {formatAgentName(featuredAgent.agentName)}
                           </h2>
                           <p className="text-sm text-slate-700">{getOwnerName(featuredAgent.owner)}</p>
                         </div>
@@ -454,7 +455,8 @@ export default function Agents() {
                       <div className="flex items-center gap-3">
                         <AgentAvatar
                           avatarUrl={featuredAgent.avatarUrl}
-                          agentName={featuredAgent.agentName}
+                          agentName={formatAgentName(featuredAgent.agentName)}
+                          agentId={featuredAgent.agentId}
                           className="h-14 w-14 border border-white/80 shadow-[0_14px_28px_-18px_rgba(20,37,84,0.45)]"
                           fallbackClassName="bg-white/90 text-slate-950"
                           iconClassName="h-6 w-6"
@@ -533,7 +535,7 @@ export default function Agents() {
                         </Badge>
                         <div className="space-y-2">
                           <h2 className="max-w-xs text-[2rem] font-medium leading-[1] tracking-[-0.06em] text-slate-950">
-                            {newestAgent.agentName}
+                            {formatAgentName(newestAgent.agentName)}
                           </h2>
                           <div className="flex items-center gap-2">
                             <Avatar
@@ -599,7 +601,7 @@ export default function Agents() {
                     </Badge>
                     <div className="space-y-1">
                         <h3 className="text-xl font-medium tracking-[-0.04em] text-slate-950">
-                          {newestAgent ? newestAgent.agentName : "No live agent yet"}
+                          {newestAgent ? formatAgentName(newestAgent.agentName) : "No live agent yet"}
                         </h3>
                         <p className="text-sm leading-6 text-slate-700">
                           {newestAgent
@@ -616,7 +618,8 @@ export default function Agents() {
                     {newestAgent ? (
                       <AgentAvatar
                         avatarUrl={newestAgent.avatarUrl}
-                        agentName={newestAgent.agentName}
+                        agentName={formatAgentName(newestAgent.agentName)}
+                        agentId={newestAgent.agentId}
                         className="h-11 w-11 border border-white/80 shadow-[0_14px_28px_-18px_rgba(20,37,84,0.45)]"
                         fallbackClassName="bg-white/90 text-slate-950"
                         iconClassName="h-5 w-5"
@@ -751,8 +754,9 @@ export default function Agents() {
                                 <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-white/88 text-slate-950 shadow-sm">
                                   <AgentAvatar
                                     avatarUrl={agent.avatarUrl}
-                                    agentName={agent.agentName}
-                                    className="h-11 w-11 rounded-[16px]"
+                                    agentName={formatAgentName(agent.agentName)}
+                                    agentId={agent.agentId}
+                                    className="h-10 w-10 shadow-[0_10px_22px_-12px_rgba(20,37,84,0.45)]"
                                     fallbackClassName="bg-white/88 text-slate-950"
                                     iconClassName="h-5 w-5"
                                   />
@@ -765,7 +769,7 @@ export default function Agents() {
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
                                     <h3 className="truncate text-lg font-medium tracking-[-0.04em] text-slate-950">
-                                      {agent.agentName}
+                                      {formatAgentName(agent.agentName)}
                                     </h3>
                                     <Avatar
                                       className="h-6 w-6 shrink-0 border border-white/90 shadow-sm"

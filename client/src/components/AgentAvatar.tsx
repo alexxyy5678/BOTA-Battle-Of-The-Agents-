@@ -3,10 +3,12 @@ import { useState } from "react";
 import { AgentIcon } from "@/components/AgentIcon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { botaFighterProfileArt } from "@/lib/botaCharacterLayer";
 
 type AgentAvatarProps = {
   avatarUrl?: string | null;
   agentName?: string | null;
+  agentId?: string | null;
   className?: string;
   imageClassName?: string;
   fallbackClassName?: string;
@@ -27,13 +29,20 @@ function getInitials(agentName?: string | null) {
 export function AgentAvatar({
   avatarUrl,
   agentName,
+  agentId,
   className,
   imageClassName,
   fallbackClassName,
   iconClassName,
 }: AgentAvatarProps) {
   const [imageErrored, setImageErrored] = useState(false);
-  const resolvedAvatarUrl = imageErrored ? null : String(avatarUrl || "").trim() || null;
+  
+  const artUrl = botaFighterProfileArt({
+    avatarUrl,
+    seed: agentId,
+  });
+  
+  const resolvedAvatarUrl = imageErrored ? null : String(artUrl || "").trim() || null;
 
   return (
     <Avatar className={cn("overflow-hidden rounded-full", className)}>

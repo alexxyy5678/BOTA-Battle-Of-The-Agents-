@@ -21,8 +21,8 @@ interface SidebarProps {
 
 const menuItems: { icon: string; label: string; section: AppSection }[] = [
   { icon: '👑', label: 'King of the Hill', section: 'koth' },
+  { icon: '🏟️', label: 'HEAD to HEAD (Arena)', section: 'battles' },
   { icon: '🤖', label: 'Agents', section: 'agents' },
-  { icon: '🏟️', label: 'Arena', section: 'battles' },
   { icon: '🛒', label: 'Marketplace', section: 'marketplace' },
   { icon: '🏆', label: 'Leaderboard', section: 'leaderboard' },
   { icon: '🌐', label: 'Communities', section: 'communities' },
@@ -82,6 +82,19 @@ export default function Sidebar({
     staleTime: 30_000,
     refetchInterval: 60_000,
   })
+  
+  const { data: kothData } = useQuery<{ participants: any[] }>({
+    queryKey: ['/api/bantahbro/koth/participants'],
+    refetchInterval: 15_000,
+  })
+  const kothActiveCount = kothData?.participants?.filter(p => p.status === 'live' || p.status === 'queued')?.length || 0
+  
+  const { data: agentsDirData } = useQuery<{ agents: any[] }>({
+    queryKey: ['/api/bantahbro/agents-directory'],
+    staleTime: 60_000,
+  })
+  const totalAgentsCount = agentsDirData?.agents?.length || 0
+
   const liveBattleCount = battleFeed?.battles?.length ?? 0
   const agentOfWeek = useMemo(
     () => sortByLeaderboardRank(fighterFeed?.profiles || [])[0] || null,
@@ -140,6 +153,16 @@ export default function Sidebar({
                 {item.section === 'battles' && (
                   <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
                     {liveBattleCount}
+                  </span>
+                )}
+                {item.section === 'koth' && kothActiveCount > 0 && (
+                  <span className="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-black">
+                    {kothActiveCount}
+                  </span>
+                )}
+                {item.section === 'agents' && totalAgentsCount > 0 && (
+                  <span className="ml-auto rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-black leading-none text-primary">
+                    {totalAgentsCount}
                   </span>
                 )}
               </button>

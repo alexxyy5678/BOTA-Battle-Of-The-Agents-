@@ -30,6 +30,9 @@ const KingOfTheHillPage = lazy(() => import('@/components/pages/koth-page'));
 const ChallengeRightSidebar = lazy(() =>
   import('@/components/pages/challenge-page').then((module) => ({ default: module.ChallengeRightSidebar })),
 );
+const KothRightSidebar = lazy(() =>
+  import('@/components/pages/koth-page').then((module) => ({ default: module.KothRightSidebar })),
+);
 
 const ARENA_PREVIEW_EVENT = 'bantahbro:arena-preview-change';
 
@@ -73,7 +76,7 @@ export type BantahTool =
   | 'launcher';
 
 export default function Home({
-  initialSection = 'challenge',
+  initialSection = 'koth',
   initialDashboardTab = 'battles',
   initialPredictionBattleId = '',
 }: {
@@ -139,7 +142,11 @@ export default function Home({
 
     const queryString = params.toString();
     const currentPathname = botaAppHref(window.location.pathname);
-    const nextUrl = `${currentPathname}${queryString ? `?${queryString}` : ''}`;
+    let nextPathname = currentPathname;
+    if (normalizedSection !== 'rewards' && nextPathname.endsWith('/rewards')) {
+      nextPathname = nextPathname.replace(/\/rewards$/, '') || '/';
+    }
+    const nextUrl = `${nextPathname}${queryString ? `?${queryString}` : ''}`;
     window.history.replaceState({}, '', nextUrl);
   };
 
@@ -186,7 +193,8 @@ export default function Home({
       sectionParam === 'launcher' ||
       sectionParam === 'profile' ||
       sectionParam === 'prediction' ||
-      sectionParam === 'prediction-battle'
+      sectionParam === 'prediction-battle' ||
+      sectionParam === 'koth'
     ) {
       setActiveSection(normalizeSection(sectionParam));
     }
@@ -269,7 +277,7 @@ export default function Home({
       case 'polymarket':
         return <PolymarketBattlePage />;
       case 'koth':
-        return <KingOfTheHillPage />;
+        return renderWithPanel(<KingOfTheHillPage />, <KothRightSidebar />, 'hidden lg:flex');
       case 'agents':
         return renderWithRightPanel(<AgentsPage />);
       case 'marketplace':

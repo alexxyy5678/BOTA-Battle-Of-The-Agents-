@@ -6,7 +6,23 @@ import {
   botaToolInventory,
   botaFighterLoadout,
   botaToolsCatalog,
+  kothParticipants,
+  notifications,
+  kothTrollboxMessages,
+  botaFighterProfiles,
+  botaArenaBattleRecords,
+  users,
+  transactions,
+  userRewardsClaims,
+  agents,
+  marketplaceListings,
 } from "@shared/schema";
+import { notifyBotaUser } from "../bantahBro/botaNotificationService";
+import { generateAutonomousTrollboxMessage } from "../bantahBro/autonomousPersonaService";
+import {
+  listManagedBantahAgentRuntimes,
+  sendManagedBantahAgentRuntimeMessage
+} from "../bantahElizaRuntimeManager";
 import {
   bantahBroAlertSchema,
   bantahBroBoostMarketRequestSchema,
@@ -196,7 +212,6 @@ import { storage } from "../storage";
 import { getBantahBroTelegramBot } from "../telegramBot";
 import { getTelegramSync } from "../telegramSync";
 import { sendManagedBantahAgentRuntimeMessage } from "../bantahElizaRuntimeManager";
-import { agents, transactions, users, marketplaceListings } from "@shared/schema";
 import {
   BANTCREDIT_BATTLE_WATCH_REWARD_TIERS,
   BANTCREDIT_BATTLE_WATCH_TRANSACTION_TYPE,
@@ -4131,9 +4146,6 @@ router.post('/gen1/buy-bc', PrivyAuthMiddleware, async (req: any, res) => {
 
     const bcAmount = BC_TIERS[payload.usdAmount as keyof typeof BC_TIERS] || (payload.usdAmount * 10000);
     
-    const db = require('../db').db;
-    const { sql } = require('drizzle-orm');
-    
     // Add points to user
     await db.execute(sql`
       UPDATE "users" 
@@ -4171,9 +4183,6 @@ router.post('/gen1/packs/:packId/buy', PrivyAuthMiddleware, async (req: any, res
     if (!pack) return res.status(404).json({ message: 'Pack not found' });
 
     const packPriceBc = Number(pack.price_bc || pack.metadata?.priceBc || 20000);
-
-    const db = require('../db').db;
-    const { sql } = require('drizzle-orm');
 
     // Deduct BC
     const balanceUpdate = await db.execute(sql`
@@ -4329,9 +4338,6 @@ router.get('/gen1/packs/inventory/:walletAddress', async (req: any, res) => {
     if (!walletAddress) return res.status(400).json({ message: 'missing walletAddress' });
     
     await packService.ensurePackTables();
-    // Query unopened packs for user
-    const db = require('../db').db;
-    const { sql } = require('drizzle-orm');
     
     // Get the pack definitions joined with the ownership records
     const r = await db.execute(sql`
@@ -4359,8 +4365,6 @@ router.get('/gen1/packs/history/:walletAddress', async (req: any, res) => {
     if (!walletAddress) return res.status(400).json({ message: 'missing walletAddress' });
     
     await packService.ensurePackTables();
-    const db = require('../db').db;
-    const { sql } = require('drizzle-orm');
     
     const r = await db.execute(sql`
       SELECT 
@@ -4478,6 +4482,322 @@ router.get('/agents/:agentId/memory/summary', async (req: any, res) => {
     res.json({ summary });
   } catch (error) {
     handleError(res, error);
+  }
+});
+
+// KOTH API
+router.get('/koth/participants', async (req, res) => {
+  try {
+    const records = await db.select()
+      .from(kothParticipants)
+      .leftJoin(botaFighterProfiles, eq(kothParticipants.agentId, botaFighterProfiles.agentId));
+      
+    // Map the joined records to a flat participant object
+    const participants = records.map(record => ({
+      ...record.koth_participants,
+      name: record.bota_fighter_profiles?.ensName || record.bota_fighter_profiles?.displayName || record.bota_fighter_profiles?.walletAddress || record.koth_participants.agentId.split('-')[0],
+      avatarUrl: record.bota_fighter_profiles?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${record.koth_participants.agentId}`,
+    }));
+      
+    res.json({ participants });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/koth/agents/:agentId/toggle-auto', PrivyAuthMiddleware, async (req: any, res) => {
+  try {
+    const agentId = String(req.params.agentId);
+    let participant = await db.query.kothParticipants.findFirst({
+      where: eq(kothParticipants.agentId, agentId)
+    });
+    
+    if (participant) {
+      const updated = await db.update(kothParticipants)
+        .set({ autoJoin: !participant.autoJoin })
+        .where(eq(kothParticipants.agentId, agentId))
+        .returning();
+      participant = updated[0];
+    } else {
+      const inserted = await db.insert(kothParticipants)
+        .values({
+          agentId,
+          userId: req.user.id,
+          autoJoin: true,
+          status: 'idle'
+        })
+        .returning();
+      participant = inserted[0];
+    }
+    
+    res.json({ participant });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/koth/agents/:agentId/join', PrivyAuthMiddleware, async (req: any, res) => {
+  try {
+    const agentId = String(req.params.agentId);
+    const userId = req.user.id;
+    const stakeAmount = Number(req.body?.stakeAmount) || 500;
+    
+    // Check user balance
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId)
+    });
+    
+    if (!user || Number(user.balance) < stakeAmount) {
+      return res.status(400).json({ message: `Insufficient BC. You need ${stakeAmount} BC to enter.` });
+    }
+    
+    // Deduct stake amount
+    const newBalance = (Number(user.balance) - stakeAmount).toFixed(2);
+    await db.update(users).set({ balance: newBalance }).where(eq(users.id, userId));
+    
+    // Log transaction
+    await db.insert(transactions).values({
+      userId,
+      type: 'koth_stake',
+      amount: stakeAmount.toString(),
+      description: `Staked ${stakeAmount} BC to enter KOTH Arena`,
+      status: 'completed'
+    });
+    
+    let participant = await db.query.kothParticipants.findFirst({
+      where: eq(kothParticipants.agentId, agentId)
+    });
+    
+    if (participant) {
+      const updated = await db.update(kothParticipants)
+        .set({ status: 'queued', joinedAt: new Date(), stakedAmount: stakeAmount })
+        .where(eq(kothParticipants.agentId, agentId))
+        .returning();
+      participant = updated[0];
+    } else {
+      const inserted = await db.insert(kothParticipants)
+        .values({
+          agentId,
+          userId,
+          autoJoin: false,
+          status: 'queued',
+          joinedAt: new Date(),
+          stakedAmount: stakeAmount
+        })
+        .returning();
+      participant = inserted[0];
+    }
+    
+    // Add a notification!
+    await db.insert(notifications).values({
+      id: crypto.randomUUID(),
+      userId,
+      title: 'Joined KOTH Arena',
+      message: `⚔️ Successfully Joined! Deducted ${stakeAmount} BC. May the Odds be with you!`,
+      type: 'info'
+    });
+    
+    res.json({ participant });
+  } catch (error) {
+    console.error('KOTH Join error', error);
+    res.status(500).json({ error: "Failed to join KOTH" });
+  }
+});
+
+router.post('/koth/agents/:agentId/die', async (req, res) => {
+  try {
+    const agentId = String(req.params.agentId);
+    
+    // Find the participant
+    const participant = await db.query.kothParticipants.findFirst({
+      where: eq(kothParticipants.agentId, agentId)
+    });
+    
+    if (!participant || participant.status === 'dead') {
+      return res.status(404).json({ error: "Participant not found or already dead" });
+    }
+
+    // Mark as dead
+    await db.update(kothParticipants)
+      .set({ status: 'dead' })
+      .where(eq(kothParticipants.agentId, agentId));
+
+    // Deduct death penalty (500 BC)
+    const penaltyAmount = 500;
+    
+    if (participant.userId) {
+      // 1. Update user balance
+      await db.update(users)
+        .set({ balance: sql`${users.balance} - ${penaltyAmount}` })
+        .where(eq(users.id, participant.userId));
+
+      // 2. Create transaction record
+      await db.insert(transactions).values({
+        userId: participant.userId,
+        amount: penaltyAmount.toString(),
+        currency: 'BC',
+        type: 'koth_death_penalty',
+        status: 'completed'
+      });
+
+      // 3. Notify the user
+      await notifyBotaUser({
+        userId: participant.userId,
+        type: "bota_fighter_defeat",
+        title: "Arena Defeat",
+        message: `Your agent ${agentId} was killed in the King of the Hill Arena! You lost ${penaltyAmount} BC.`,
+        icon: "B",
+        priority: 4,
+        fomoLevel: "urgent"
+      });
+    }
+
+    res.json({ success: true, message: "Agent marked as dead and penalty applied" });
+  } catch (error) {
+    console.error('KOTH Death error', error);
+    res.status(500).json({ error: "Failed to process agent death" });
+  }
+});
+
+router.post('/koth/auto-stake-wildcards', async (req, res) => {
+  try {
+    // 1. Fetch available agents (e.g. ones that aren't already live/queued in KOTH)
+    const existing = await db.select().from(kothParticipants);
+    const existingIds = new Set(existing.map(p => p.agentId));
+    
+    // Get up to 10 random wildcards from botaFighterProfiles that aren't in the arena yet
+    const allProfiles = await db.select().from(botaFighterProfiles);
+    const available = allProfiles.filter(p => !existingIds.has(p.agentId));
+    
+    // Pick a random subset to auto-stake
+    const toStake = available.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 5) + 3);
+    
+    if (toStake.length === 0) {
+      return res.json({ message: "No wildcards available to stake" });
+    }
+
+    // Default system user ID to attribute stakes to (can be null if constraints allowed, but we'll try to find a system admin or fallback to first user)
+    const firstUser = await db.query.users.findFirst();
+    const systemUserId = firstUser ? firstUser.id : 'system';
+
+    const inserted = [];
+    for (const agent of toStake) {
+      // Random stake between 3000 and 15000
+      const randomStake = Math.floor(Math.random() * 12000) + 3000;
+      
+      const newParticipant = await db.insert(kothParticipants)
+        .values({
+          agentId: agent.agentId,
+          userId: systemUserId, 
+          autoJoin: true,
+          status: 'live',
+          joinedAt: new Date(),
+          stakedAmount: randomStake
+        })
+        .returning();
+        
+      inserted.push(newParticipant[0]);
+    }
+
+    res.json({ message: `Successfully auto-staked ${inserted.length} wildcards!`, participants: inserted });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+let inMemoryTrollboxMessages: any[] = [];
+
+router.get('/koth/trollbox', async (req, res) => {
+  try {
+    const messages = await db.select().from(kothTrollboxMessages).orderBy(desc(kothTrollboxMessages.createdAt)).limit(50);
+    return res.json({ messages: messages.reverse() });
+  } catch (error) {
+    // Fallback to in-memory if DB fails (e.g. connection limits or schema not pushed)
+    return res.json({ messages: inMemoryTrollboxMessages.slice(-50) });
+  }
+});
+
+router.post('/koth/trollbox/generate', async (req, res) => {
+  try {
+    const participants = await db.select().from(kothParticipants).where(inArray(kothParticipants.status, ['live', 'queued']));
+    const participantsCount = participants.length;
+
+    if (participantsCount === 0) {
+      // Fallback for empty arena
+      const mockMessages = [
+        "Someone is definitely cooking something up... 🔥",
+        "Who let that guy into the arena??",
+        "I'm putting all my BC on the underdog!",
+        "LMAO did you see that dodge?",
+        "This is the most intense match I've seen all day.",
+        "RIP to whoever fights next...",
+        "These agents are built different.",
+        "What a wildly chaotic start to the match!"
+      ];
+      const randomMsg = mockMessages[Math.floor(Math.random() * mockMessages.length)];
+      
+      const newMsg = {
+        agentId: "system-troll",
+        senderName: "Arena Fan",
+        avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=system-troll",
+        message: randomMsg,
+        isAction: false,
+        createdAt: new Date()
+      };
+      
+      const [inserted] = await db.insert(kothTrollboxMessages).values(newMsg).returning();
+      return res.json({ message: inserted });
+    }
+
+    // Pick a random live participant
+    const randomParticipant = participants[Math.floor(Math.random() * participantsCount)];
+    const activeRuntimes = listManagedBantahAgentRuntimes().filter(r => r.runtimeStatus === 'active');
+    const hasElizaRuntime = activeRuntimes.find(r => r.agentId === randomParticipant.agentId);
+
+    // Fetch profile for the participant
+    const [profile] = await db.select().from(botaFighterProfiles).where(eq(botaFighterProfiles.agentId, randomParticipant.agentId)).limit(1);
+    
+    let messageText = "";
+
+    if (hasElizaRuntime) {
+      const prompt = `You are watching the King of the Hill (KOTH) arena. There are currently ${participantsCount} agents in the battle. 
+Provide a short, entertaining comment or troll the participants. You can act like a sports commentator, a cynical observer, or an enthusiastic fan. Keep it under 2 sentences. Be funny and ruthless if needed.`;
+
+      const elizaResponse = await sendManagedBantahAgentRuntimeMessage(randomParticipant.agentId, {
+        text: prompt,
+        context: "KOTH Arena Trollbox Generation",
+      });
+      messageText = elizaResponse.text;
+    } else {
+      // Use Autonomous Persona Service
+      if (profile) {
+        messageText = await generateAutonomousTrollboxMessage(profile, participantsCount);
+      } else {
+        messageText = "I have arrived."; // basic fallback if no profile found
+      }
+    }
+
+    const newMessage = {
+      agentId: randomParticipant.agentId,
+      senderName: profile?.ensName || profile?.displayName || profile?.walletAddress || randomParticipant.agentId.split('-')[0] || "Agent",
+      avatarUrl: profile?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${randomParticipant.agentId}`,
+      message: messageText,
+      isAction: false,
+      createdAt: new Date(),
+    };
+
+    try {
+      const inserted = await db.insert(kothTrollboxMessages).values(newMessage).returning();
+      return res.json({ message: inserted[0] });
+    } catch (dbError) {
+      // In-memory fallback
+      const fallbackMessage = { id: Date.now(), ...newMessage };
+      inMemoryTrollboxMessages.push(fallbackMessage);
+      return res.json({ message: fallbackMessage });
+    }
+  } catch (error) {
+    console.error("Trollbox generation error:", error);
+    return res.status(500).json({ message: "Failed to generate trollbox message" });
   }
 });
 

@@ -14,6 +14,7 @@ import { Coins, ShieldCheck, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getLevelIcon, getLevelName } from "@/utils/levelSystem";
+import { formatAgentName } from "@/lib/utils";
 import { getUserDisplayName } from "@/hooks/usePublicUserBasic";
 import { AgentIcon } from "@/components/AgentIcon";
 import { AgentAvatar } from "@/components/AgentAvatar";
@@ -165,7 +166,8 @@ export default function Leaderboard() {
                 <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100">
                   <AgentAvatar
                     avatarUrl={entry.avatarUrl}
-                    agentName={entry.agentName}
+                    agentName={formatAgentName(entry.agentName)}
+                    agentId={entry.agentId}
                     className="h-10 w-10"
                     fallbackClassName="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100"
                     iconClassName="h-5 w-5"
@@ -179,7 +181,7 @@ export default function Leaderboard() {
 
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
-                    {entry.agentName}
+                    {formatAgentName(entry.agentName)}
                   </p>
                   <div className="mt-1 flex items-center gap-3">
                     <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -315,7 +317,8 @@ export default function Leaderboard() {
             <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
               <AgentAvatar
                 avatarUrl={entry.avatarUrl}
-                agentName={entry.agentName}
+                agentName={formatAgentName(entry.agentName)}
+                agentId={entry.agentId}
                 className="h-8 w-8"
                 fallbackClassName="bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100"
                 iconClassName="h-4 w-4"
@@ -324,7 +327,7 @@ export default function Leaderboard() {
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {entry.agentName}
+                {formatAgentName(entry.agentName)}
               </p>
               <div className="mt-0.5 flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400">

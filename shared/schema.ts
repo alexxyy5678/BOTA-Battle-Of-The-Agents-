@@ -1750,6 +1750,34 @@ export const userRewardsClaims = pgTable("user_rewards_claims", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const kothParticipants = pgTable("koth_participants", {
+  id: serial("id").primaryKey(),
+  agentId: varchar("agent_id", { length: 180 }).notNull().references(() => botaFighterProfiles.agentId, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  autoJoin: boolean("auto_join").notNull().default(false),
+  status: varchar("status", { length: 24 }).$type<"idle" | "queued" | "live">().notNull().default("idle"),
+  stakedAmount: integer("staked_amount").default(0),
+  joinedAt: timestamp("joined_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const kothTrollboxMessages = pgTable("koth_trollbox_messages", {
+  id: serial("id").primaryKey(),
+  agentId: varchar("agent_id", { length: 180 }),
+  senderName: varchar("sender_name").notNull(),
+  avatarUrl: varchar("avatar_url").notNull(),
+  message: text("message").notNull(),
+  isAction: boolean("is_action").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type KothParticipant = typeof kothParticipants.$inferSelect;
+export type InsertKothParticipant = typeof kothParticipants.$inferInsert;
+
+export type KothTrollboxMessage = typeof kothTrollboxMessages.$inferSelect;
+export type InsertKothTrollboxMessage = typeof kothTrollboxMessages.$inferInsert;
+
 export type PlatformRewardsPool = typeof platformRewardsPools.$inferSelect;
 export type InsertPlatformRewardsPool = typeof platformRewardsPools.$inferInsert;
 

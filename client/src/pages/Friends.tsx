@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -24,6 +24,8 @@ import { ChallengePreviewCard } from "@/components/ChallengePreviewCard";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { toast } from "@/hooks/use-toast";
 import { MobileNavigation } from "@/components/MobileNavigation";
+import { normalizeWalletAddress } from "@/lib/walletActions";
+import { formatAgentName } from "@/lib/utils";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getAgentSpecialtyLabel, getAgentSpecialtyMeta } from "@/lib/agentSpecialty";
 import { apiRequest } from "@/lib/queryClient";
@@ -784,7 +786,8 @@ function RequestRowSkeleton() {
                         <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
                           <AgentAvatar
                             avatarUrl={agent.avatarUrl}
-                            agentName={agent.agentName}
+                            agentName={formatAgentName(agent.agentName)}
+                            agentId={agent.agentId}
                             className="h-9 w-9"
                             fallbackClassName="bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100"
                             iconClassName="h-4.5 w-4.5"
@@ -798,7 +801,7 @@ function RequestRowSkeleton() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <h3 className="truncate font-bold text-xs text-slate-900 dark:text-slate-100 leading-tight">
-                                {agent.agentName}
+                                {formatAgentName(agent.agentName)}
                               </h3>
                               <span aria-hidden="true" className="text-xs leading-none">
                                 {getAgentSpecialtyMeta(agent.specialty).emoji}

@@ -239,28 +239,28 @@ function getOverlayCopy(status: BattleArenaStatus) {
         eyebrow: 'Queued Battle',
         title: 'Battle begins in',
         detail: 'Fighters are warming up. Arena preview is open.',
-        tone: 'border-sky-300/50 bg-sky-500/15 text-sky-100',
+        tone: 'border-primary/30 bg-primary/10 text-primary',
       };
     case 'cancelled':
       return {
         eyebrow: 'Cancelled',
         title: 'Battle cancelled',
         detail: 'This matchup was pulled from the queue.',
-        tone: 'border-rose-300/50 bg-rose-500/15 text-rose-100',
+        tone: 'border-destructive/20 bg-destructive/10 text-destructive',
       };
     case 'rematch':
       return {
         eyebrow: 'Rematch',
         title: 'Rematch pending',
         detail: 'Waiting for both fighters to accept the runback.',
-        tone: 'border-amber-300/50 bg-amber-500/15 text-amber-100',
+        tone: 'border-border bg-muted/50 text-foreground',
       };
     default:
       return {
         eyebrow: 'Live',
         title: 'Battle live',
         detail: 'The match is underway.',
-        tone: 'border-emerald-300/50 bg-emerald-500/15 text-emerald-100',
+        tone: 'border-secondary/20 bg-secondary/10 text-secondary',
       };
   }
 }
@@ -539,11 +539,11 @@ export function FightingGameArenaEmbed({
 
   return (
     <section
-      className={`relative overflow-hidden border border-border bg-black shadow-sm ${
+      className={`bantahbro-next-ui relative overflow-hidden border border-border bg-background shadow-sm ${
         flush ? 'rounded-none border-x-0 border-t-0' : compact ? 'mx-1 mt-1 rounded-xl' : 'rounded-2xl'
       }`}
     >
-      <div className="aspect-[16/9] w-full bg-black">
+      <div className="aspect-[16/9] w-full bg-background">
         <div
           ref={arenaRootRef}
           className={`bantah-fighting-game container ${useBantahMascots ? 'is-mascot-arena' : ''}`}
@@ -647,14 +647,14 @@ export function FightingGameArenaEmbed({
           <div ref={dialogRef} className="dialog" />
           <div className="absolute left-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2">
             {leftSide?.loadoutTools?.slice(0, 4).map((tool, idx) => (
-              <div key={`l-tool-${idx}`} className="flex h-8 w-8 md:h-11 md:w-11 items-center justify-center rounded-lg border border-white/20 bg-black/50 shadow-[0_0_12px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-transform hover:scale-110">
+              <div key={`l-tool-${idx}`} className="flex h-8 w-8 md:h-11 md:w-11 items-center justify-center rounded-lg border border-border/50 bg-background/50 shadow-[0_0_12px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-transform hover:scale-110">
                 <img src={tool.imageUrl} alt={tool.name} title={tool.name} className="h-4/5 w-4/5 object-contain drop-shadow-md" />
               </div>
             ))}
           </div>
           <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2">
             {rightSide?.loadoutTools?.slice(0, 4).map((tool, idx) => (
-              <div key={`r-tool-${idx}`} className="flex h-8 w-8 md:h-11 md:w-11 items-center justify-center rounded-lg border border-white/20 bg-black/50 shadow-[0_0_12px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-transform hover:scale-110">
+              <div key={`r-tool-${idx}`} className="flex h-8 w-8 md:h-11 md:w-11 items-center justify-center rounded-lg border border-border/50 bg-background/50 shadow-[0_0_12px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-transform hover:scale-110">
                 <img src={tool.imageUrl} alt={tool.name} title={tool.name} className="h-4/5 w-4/5 object-contain drop-shadow-md" />
               </div>
             ))}
@@ -681,28 +681,28 @@ export function FightingGameArenaEmbed({
         </div>
       </div>
       {arenaLoadError && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/55 px-4 text-center text-sm font-black uppercase tracking-wide text-white">
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/50 px-4 text-center text-sm font-black uppercase tracking-wide text-foreground">
           {arenaLoadError}
         </div>
       )}
       {showOverlay && (
         <div
           data-arena-state-overlay={battleStatus}
-          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/35 px-4 backdrop-blur-[1px]"
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/50 px-4 backdrop-blur-[1px]"
         >
           <div className={`w-full max-w-sm rounded-lg border px-4 py-3 text-center shadow-2xl ${overlayCopy.tone}`}>
             <div className="text-[10px] font-black uppercase tracking-wide opacity-85">{overlayCopy.eyebrow}</div>
-            <div className="mt-1 text-sm font-black uppercase tracking-wide text-white">{matchupLabel}</div>
+            <div className="mt-1 text-sm font-black uppercase tracking-wide text-foreground">{matchupLabel}</div>
             <div className="mt-2 text-xs font-bold uppercase opacity-80">{overlayCopy.title}</div>
             {battleStatus === 'queued' ? (
-              <div className="mt-1 font-mono text-4xl font-black leading-none text-white">
+              <div className="mt-1 font-mono text-4xl font-black leading-none text-foreground">
                 {formatCountdown(remainingSeconds)}
               </div>
             ) : (
-              <div className="mt-1 text-3xl font-black leading-none text-white">{battleStatus.toUpperCase()}</div>
+              <div className="mt-1 text-3xl font-black leading-none text-foreground">{battleStatus.toUpperCase()}</div>
             )}
-            <div className="mt-2 text-xs font-bold text-white/80">{arenaLabel}</div>
-            <div className="mt-1 text-[11px] leading-snug text-white/65">{overlayCopy.detail}</div>
+            <div className="mt-2 text-xs font-bold text-foreground opacity-80">{arenaLabel}</div>
+            <div className="mt-1 text-[11px] leading-snug text-foreground opacity-65">{overlayCopy.detail}</div>
           </div>
         </div>
       )}

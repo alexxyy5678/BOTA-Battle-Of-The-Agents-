@@ -196,7 +196,8 @@ function getInitialBantahBroSectionFromQuery(): AppSection | undefined {
     section === 'import' ||
     section === 'profile' ||
     section === 'prediction' ||
-    section === 'prediction-battle'
+    section === 'prediction-battle' ||
+    section === 'koth'
   ) {
     return section;
   }

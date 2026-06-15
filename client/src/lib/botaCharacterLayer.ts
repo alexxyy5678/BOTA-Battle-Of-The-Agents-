@@ -103,6 +103,19 @@ export function botaFighterProfileArt({
   seed?: string | null
   source?: BotaCharacterSource | null
 }) {
+  const isImportedAgent = Boolean(seed && String(seed).includes(':'))
+
+  if (isImportedAgent) {
+    let resolvedSource = source
+    if (!resolvedSource && seed) {
+      const parts = String(seed).split(':')
+      if (parts.length > 1) {
+        resolvedSource = parts[1] as BotaCharacterSource
+      }
+    }
+    return botaCharacterAvatar(seed, resolvedSource)
+  }
+
   return isNonFighterCoverArtUrl(avatarUrl)
     ? botaCharacterAvatar(seed, source)
     : String(avatarUrl).trim()

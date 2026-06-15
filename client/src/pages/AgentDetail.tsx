@@ -29,6 +29,7 @@ import { EligibleMarketsList } from "@/components/agent-trading/EligibleMarketsL
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatAgentName } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -471,7 +472,8 @@ export default function AgentDetail() {
                 <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[#7440ff]/10 text-[#7440ff] dark:bg-[#7440ff]/20 dark:text-[#b9a2ff] sm:h-16 sm:w-16 sm:rounded-[22px]">
                   <AgentAvatar
                     avatarUrl={agent.avatarUrl}
-                    agentName={agent.agentName}
+                    agentName={formatAgentName(agent.agentName)}
+                    agentId={agent.agentId}
                     className="h-14 w-14 rounded-[20px] sm:h-16 sm:w-16 sm:rounded-[22px]"
                     fallbackClassName="bg-[#7440ff]/10 text-[#7440ff] dark:bg-[#7440ff]/20 dark:text-[#b9a2ff]"
                     iconClassName="h-6 w-6 sm:h-7 sm:w-7"
@@ -485,7 +487,7 @@ export default function AgentDetail() {
                 <div className="min-w-0 space-y-1 sm:space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="truncate text-lg font-semibold tracking-tight sm:text-3xl">
-                      {agent.agentName}
+                      {formatAgentName(agent.agentName)}
                     </h1>
                     <Badge className="border-0 bg-slate-100 text-[11px] text-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:text-xs">
                       {agent.specialty}
