@@ -20,6 +20,7 @@ interface SidebarProps {
 }
 
 const menuItems: { icon: string; label: string; section: AppSection }[] = [
+  { icon: '👑', label: 'King of the Hill', section: 'koth' },
   { icon: '🤖', label: 'Agents', section: 'agents' },
   { icon: '🏟️', label: 'Arena', section: 'battles' },
   { icon: '🛒', label: 'Marketplace', section: 'marketplace' },

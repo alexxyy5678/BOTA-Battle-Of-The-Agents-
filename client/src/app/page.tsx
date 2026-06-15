@@ -26,6 +26,7 @@ const DocsPage = lazy(() => import('@/components/pages/docs-page'));
 const MarketplacePage = lazy(() => import('@/components/pages/marketplace-page'));
 const CommunitiesPage = lazy(() => import('@/components/pages/communities-page'));
 const PolymarketBattlePage = lazy(() => import('@/components/pages/polymarket-battle-page'));
+const KingOfTheHillPage = lazy(() => import('@/components/pages/koth-page'));
 const ChallengeRightSidebar = lazy(() =>
   import('@/components/pages/challenge-page').then((module) => ({ default: module.ChallengeRightSidebar })),
 );
@@ -55,7 +56,8 @@ export type AppSection =
   | 'launcher'
   | 'profile'
   | 'prediction'
-  | 'prediction-battle';
+  | 'prediction-battle'
+  | 'koth';
 
 export type BantahTool =
   | 'assistant'
@@ -264,6 +266,10 @@ export default function Home({
             <RewardsPage />
           </div>
         );
+      case 'polymarket':
+        return <PolymarketBattlePage />;
+      case 'koth':
+        return <KingOfTheHillPage />;
       case 'agents':
         return renderWithRightPanel(<AgentsPage />);
       case 'marketplace':
