@@ -346,7 +346,7 @@ export default function Home({
         </Suspense>
       </div>
 
-      {activeSection !== 'battles' && <MobileBottomNav activeSection={activeSection} onNavigate={handleNavigate} />}
+      <MobileBottomNav activeSection={activeSection} onNavigate={handleNavigate} />
     </div>
   );
 }

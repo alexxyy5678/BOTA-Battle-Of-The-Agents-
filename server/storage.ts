@@ -1,4 +1,5 @@
 import {
+  userRewardsClaims,
   users,
   agents,
   agentFollows,
@@ -245,7 +246,7 @@ export interface IStorage {
   // Transaction operations
   getTransactions(userId: string, limit?: number): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction & { reference?: string }): Promise<Transaction>;
-  getUserBalance(userId: string): Promise<{ balance: number; coins: number; points: number }>;
+  getUserBalance(userId: string): Promise<{ balance: number; coins: number; points: number; usdcEarned: number }>;
   updateUserBalance(userId: string, amount: number): Promise<User>;
 
   // Achievement operations
@@ -3460,7 +3461,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getUserBalance(userId: string): Promise<{ balance: number; coins: number; points: number }> {
+  async getUserBalance(userId: string): Promise<{ balance: number; coins: number; points: number; usdcEarned: number }> {
     try {
       // Get user's current coins and BantCredit from users table
       const user = await this.db
@@ -3514,17 +3515,25 @@ export class DatabaseStorage implements IStorage {
           currentPoints
         });
 
+        const claims = await this.db
+          .select()
+          .from(userRewardsClaims)
+          .where(eq(userRewardsClaims.userId, userId));
+        
+        const usdcEarned = claims.reduce((acc, claim) => acc + Number(claim.amountUsdc || 0), 0);
+
         const result = { 
           balance: Math.max(0, balance), // Ensure balance is never negative
           coins: currentCoins,
-          points: currentPoints
+          points: currentPoints,
+          usdcEarned: Math.max(0, usdcEarned)
         };
 
       console.log(`Returning balance result:`, result);
       return result;
     } catch (error) {
       console.error("Error getting user balance:", error);
-      return { balance: 0, coins: 0, points: 0 };
+      return { balance: 0, coins: 0, points: 0, usdcEarned: 0 };
     }
   }
 
@@ -3659,6 +3668,15 @@ export class DatabaseStorage implements IStorage {
       .groupBy(challenges.challenged)
       .as("challenged_wins_subquery");
 
+    const usdcEarnedSubquery = this.db
+      .select({
+        userId: userRewardsClaims.userId,
+        usdcEarned: sql<number>`COALESCE(SUM(CAST(${userRewardsClaims.shareAmountUsdc} AS DECIMAL)), 0)`.as("usdcEarned"),
+      })
+      .from(userRewardsClaims)
+      .groupBy(userRewardsClaims.userId)
+      .as("usdc_earned_subquery");
+
     const result = await this.db
       .select({
         id: users.id,
@@ -3674,11 +3692,13 @@ export class DatabaseStorage implements IStorage {
         rank: sql<number>`ROW_NUMBER() OVER (ORDER BY ${users.coins} DESC)`,
         eventsWon: sql<number>`COALESCE(${eventsWonSubquery.eventsWon}, 0)`,
         challengesWon: sql<number>`COALESCE(${challengerWinsSubquery.wins}, 0) + COALESCE(${challengedWinsSubquery.wins}, 0)`,
+        usdcEarned: sql<number>`COALESCE(${usdcEarnedSubquery.usdcEarned}, 0)`,
       })
       .from(users)
       .leftJoin(eventsWonSubquery, eq(users.id, eventsWonSubquery.userId))
       .leftJoin(challengerWinsSubquery, eq(users.id, challengerWinsSubquery.userId))
       .leftJoin(challengedWinsSubquery, eq(users.id, challengedWinsSubquery.userId))
+      .leftJoin(usdcEarnedSubquery, eq(users.id, usdcEarnedSubquery.userId))
       .where(
         and(
           eq(users.status, "active"),
@@ -3693,6 +3713,7 @@ export class DatabaseStorage implements IStorage {
       coins: number;
       eventsWon: number;
       challengesWon: number;
+      usdcEarned: number;
     })[];
 
     this.leaderboardCache = {

@@ -77,7 +77,6 @@ function resolveChallengeEscrowDefaults(input?: {
 export async function ensureBotaAgentChallengePredictionTables() {
   if (!ensureTablePromise) {
     ensureTablePromise = db.execute(sql`
-      CREATE EXTENSION IF NOT EXISTS "pgcrypto";
       CREATE TABLE IF NOT EXISTS "bota_agent_pvp_prediction_markets" (
         "id" serial PRIMARY KEY,
         "challenge_code" varchar(80) NOT NULL UNIQUE,

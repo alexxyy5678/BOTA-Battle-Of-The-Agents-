@@ -26,7 +26,7 @@ const IMPORTED_BATTLE_PROFILE_CACHE_TTL_MS = Math.max(
 );
 const IMPORTED_BATTLE_PROFILE_TIMEOUT_MS = Math.max(
   500,
-  Math.min(Number.parseInt(String(process.env.BOTA_IMPORTED_BATTLE_PROFILE_TIMEOUT_MS || "1500"), 10) || 1_500, 10_000),
+  Math.min(Number.parseInt(String(process.env.BOTA_IMPORTED_BATTLE_PROFILE_TIMEOUT_MS || "5000"), 10) || 5_000, 10_000),
 );
 const ENS_BATTLE_PROFILE_TIMEOUT_MS = Math.max(
   500,

@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,6 +75,7 @@ interface UserStats {
 export default function PointsAndBadges() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showRewardModal, setShowRewardModal] = useState(false);
+  const { toast } = useToast();
 
   // Fetch user data and stats
   const { data: user } = useQuery<User>({
@@ -102,6 +105,34 @@ export default function PointsAndBadges() {
     queryKey: ["/api/daily-signin/history"],
     retry: false,
     enabled: !!user,
+  });
+
+  const { data: rewardsPool } = useQuery<any>({
+    queryKey: ["/api/rewards-pool/current"],
+    retry: false,
+    enabled: !!user,
+  });
+
+  const claimMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/rewards-pool/claim");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Rewards Claimed!",
+        description: data.message || `Successfully claimed your rewards.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rewards-pool/current"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Claim Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Calculate achievement progress from real data
@@ -294,6 +325,17 @@ export default function PointsAndBadges() {
             data-testid="button-tab-activity"
           >
             Activity
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setActiveTab('pool')}
+            className={`flex-1 rounded-md text-sm h-8 transition-all ${
+              activeTab === 'pool' 
+                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg transform scale-105' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50'
+            }`}
+          >
+            Pool
           </Button>
         </div>
 
@@ -513,6 +555,74 @@ export default function PointsAndBadges() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {activeTab === 'pool' && (
+          <div className="space-y-4">
+            <Card className="bg-gradient-to-br from-blue-900 to-indigo-900 text-white border-0 shadow-xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+              <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-24 h-24 bg-cyan-500/20 rounded-full blur-xl"></div>
+              <CardHeader className="pb-2 relative z-10">
+                <CardTitle className="text-xl font-bold flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-yellow-400 mr-2" />
+                  BOTA Rewards Pool
+                </CardTitle>
+                <p className="text-center text-blue-200 text-sm mt-1">
+                  Hold 10,000+ BantCredit to earn a share of the platform's surplus USDC weekly!
+                </p>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="bg-black/20 rounded-xl p-6 text-center my-4 backdrop-blur-sm border border-white/10">
+                  <div className="text-sm text-blue-200 mb-1 tracking-wide uppercase">Current Pot Size</div>
+                  <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
+                    ${(rewardsPool?.potAmountUsdc || 0).toFixed(2)}
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-xl p-4 mt-4 backdrop-blur-md">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-medium">Your BantCredit:</span>
+                    <span className="font-bold text-yellow-400">{totalPoints.toLocaleString()} BC</span>
+                  </div>
+
+                  {rewardsPool?.userState?.isEligible ? (
+                    <div className="space-y-3 mt-4 border-t border-white/20 pt-4">
+                      <div className="flex items-center text-green-400 font-semibold justify-center">
+                        <CheckCircle className="w-5 h-5 mr-1" /> You are eligible!
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-blue-200">Est. Weekly Share:</span>
+                        <span className="font-bold text-green-300">
+                          ${(rewardsPool?.userState?.estimatedShareUsdc || 0).toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 mt-4 border-t border-white/20 pt-4">
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-orange-300 mb-1">
+                          You need {rewardsPool?.userState?.bcNeeded?.toLocaleString() || '10,000'} more BC to unlock!
+                        </div>
+                        <Progress value={(totalPoints / 10000) * 100} className="h-2 bg-black/40" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {rewardsPool?.userState?.totalPendingUsdc > 0 && (
+                  <div className="mt-6">
+                    <Button 
+                      onClick={() => claimMutation.mutate()} 
+                      disabled={claimMutation.isPending}
+                      className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-6 text-lg shadow-lg"
+                    >
+                      {claimMutation.isPending ? "Claiming..." : `Claim $${rewardsPool.userState.totalPendingUsdc.toFixed(2)}`}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Reward Modal */}

@@ -1723,6 +1723,42 @@ export const matchmakingQueue = pgTable("matchmaking_queue", {
   enteredAt: timestamp("entered_at").defaultNow(),
 });
 
+export const platformRewardsPools = pgTable("platform_rewards_pools", {
+  id: serial("id").primaryKey(),
+  currency: varchar("currency", { length: 16 }).notNull().default("USDC"),
+  totalAmount: decimal("total_amount", { precision: 20, scale: 8 }).notNull().default("0"),
+  status: varchar("status", { length: 24 }).notNull().default("active"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const platformRewardsDistributions = pgTable("platform_rewards_distributions", {
+  id: serial("id").primaryKey(),
+  totalPot: decimal("total_pot", { precision: 20, scale: 8 }).notNull(),
+  eligibleUsersCount: integer("eligible_users_count").notNull(),
+  totalEligibleBc: integer("total_eligible_bc").notNull(),
+  snapshotAt: timestamp("snapshot_at").defaultNow(),
+});
+
+export const userRewardsClaims = pgTable("user_rewards_claims", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  distributionId: integer("distribution_id").notNull().references(() => platformRewardsDistributions.id, { onDelete: "cascade" }),
+  bcSnapshot: integer("bc_snapshot").notNull(),
+  shareAmountUsdc: decimal("share_amount_usdc", { precision: 20, scale: 8 }).notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("pending"),
+  claimedAt: timestamp("claimed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type PlatformRewardsPool = typeof platformRewardsPools.$inferSelect;
+export type InsertPlatformRewardsPool = typeof platformRewardsPools.$inferInsert;
+
+export type PlatformRewardsDistribution = typeof platformRewardsDistributions.$inferSelect;
+export type InsertPlatformRewardsDistribution = typeof platformRewardsDistributions.$inferInsert;
+
+export type UserRewardsClaim = typeof userRewardsClaims.$inferSelect;
+export type InsertUserRewardsClaim = typeof userRewardsClaims.$inferInsert;
+
 export type BotaToolCatalog = typeof botaToolsCatalog.$inferSelect;
 export type InsertBotaToolCatalog = typeof botaToolsCatalog.$inferInsert;
 

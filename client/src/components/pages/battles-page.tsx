@@ -34,6 +34,11 @@ import type {
   AgentBattleP2PPool,
   AgentBattleP2PStakeResponse,
 } from '@shared/agentBattleP2P';
+import type {
+  BotaAgentChallengePredictionPool,
+  BotaAgentChallengePredictionPosition,
+  BotaAgentChallengePredictionStakeResponse,
+} from '@shared/botaAgentChallengePrediction';
 import {
   FightingGameArenaEmbed,
   type BattleArenaStatus,
@@ -3992,10 +3997,10 @@ export default function BattlesPage({
     refetchInterval: 30_000,
   });
 
-  const { data: p2pPool } = useQuery<AgentBattleP2PPool>({
+  const { data: rawP2pPool } = useQuery<AgentBattleP2PPool>({
     queryKey: ['/api/bantahbro/agent-battles/p2p/pool', battle?.id || 'none', isAuthenticated ? 'my' : 'public'],
     queryFn: () => apiRequest('GET', battleP2PUrl),
-    enabled: Boolean(battleP2PUrl) && !isExternalBattle,
+    enabled: Boolean(battleP2PUrl) && !isExternalBattle && !battle?.isChallenge,
     staleTime: 1_000,
     refetchInterval: 5_000,
     retry: 1,
@@ -4004,11 +4009,80 @@ export default function BattlesPage({
   const { data: p2pHistoryData } = useQuery<AgentBattleP2PHistoryResponse>({
     queryKey: ['/api/bantahbro/agent-battles/p2p/positions/my', { limit: '20' }],
     queryFn: () => apiRequest('GET', '/api/bantahbro/agent-battles/p2p/positions/my?limit=20'),
-    enabled: isAuthenticated && !isExternalBattle,
+    enabled: isAuthenticated && !isExternalBattle && !battle?.isChallenge,
     staleTime: 3_000,
     refetchInterval: 10_000,
     retry: 1,
   });
+
+  const { data: predictionPool } = useQuery<BotaAgentChallengePredictionPool>({
+    queryKey: ['/api/bantahbro/agent-challenges/prediction/pool', battle?.challengeCode],
+    queryFn: () => apiRequest('GET', `/api/bantahbro/agent-challenges/${encodeURIComponent(battle?.challengeCode || '')}/prediction/pool`),
+    enabled: Boolean(battle?.isChallenge && battle?.challengeCode) && !isExternalBattle,
+    staleTime: 1_000,
+    refetchInterval: 5_000,
+    retry: 1,
+  });
+
+  const { data: predictionPositionsData } = useQuery<{ positions: BotaAgentChallengePredictionPosition[] }>({
+    queryKey: ['/api/bantahbro/agent-challenges/prediction/positions/pool', battle?.challengeCode],
+    queryFn: () => apiRequest('GET', `/api/bantahbro/agent-challenges/prediction/positions/pool?challengeCode=${encodeURIComponent(battle?.challengeCode || '')}`),
+    enabled: Boolean(battle?.isChallenge && battle?.challengeCode) && !isExternalBattle,
+    staleTime: 3_000,
+    refetchInterval: 10_000,
+    retry: 1,
+  });
+
+  const p2pPool = useMemo<AgentBattleP2PPool | undefined>(() => {
+    if (!battle?.isChallenge) return rawP2pPool;
+    if (!predictionPool) return undefined;
+    const aSide = predictionPool.sides[0];
+    const bSide = predictionPool.sides[1];
+    return {
+      battleId: battle.id,
+      status: predictionPool.status === 'betting_open' ? 'live' : 'ended',
+      escrowMode: predictionPool.escrowMode,
+      escrowChallengeId: predictionPool.escrowChallengeId,
+      escrowChainId: predictionPool.escrowChainId,
+      escrowTokenSymbol: predictionPool.escrowTokenSymbol,
+      escrowAddress: null,
+      totalVolume: predictionPool.totalStake,
+      totalPositions: predictionPool.positionCount,
+      sides: [
+        { sideId: battle.sides[0].id, totalStake: aSide.totalStake, bettorCount: aSide.bettorCount, sharePercent: aSide.sharePercent },
+        { sideId: battle.sides[1].id, totalStake: bSide.totalStake, bettorCount: bSide.bettorCount, sharePercent: bSide.sharePercent },
+      ],
+      userPositions: predictionPool.userPosition ? [] : [], // We don't map userPosition directly here
+      updatedAt: predictionPool.updatedAt,
+    };
+  }, [battle, rawP2pPool, predictionPool]);
+
+  const battleSlipHistory = useMemo(() => {
+    if (!battle?.isChallenge) return p2pHistoryData?.positions || [];
+    if (!predictionPositionsData?.positions) return [];
+    
+    return predictionPositionsData.positions.map((pos) => {
+      const isLeft = pos.side === 'YES' || pos.side === 'A';
+      return {
+        id: pos.id,
+        battleId: battle.id,
+        battleTitle: `Challenge: ${battle.title}`,
+        sideId: isLeft ? battle.sides[0].id : battle.sides[1].id,
+        sideLabel: pos.sideAgentName,
+        opponentSideId: isLeft ? battle.sides[1].id : battle.sides[0].id,
+        opponentSideLabel: isLeft ? battle.sides[1].agentName : battle.sides[0].agentName,
+        userId: pos.userId,
+        stakeAmount: pos.stakeAmount,
+        stakeCurrency: pos.stakeCurrency,
+        escrowStatus: pos.escrowStatus as any,
+        resultStatus: pos.winnerSide ? (pos.winnerSide === pos.side ? 'won' : 'lost') : 'live',
+        earnedAmount: pos.payoutAmount,
+        roundEndsAt: battle.endsAt,
+        createdAt: pos.createdAt,
+        updatedAt: pos.updatedAt,
+      } as AgentBattleP2PHistoryPosition;
+    });
+  }, [battle, p2pHistoryData, predictionPositionsData]);
 
   const { data: onchainConfig } = useQuery<OnchainRuntimeConfig>({
     queryKey: ['/api/onchain/config'],
@@ -4025,7 +4099,6 @@ export default function BattlesPage({
   const battleEscrowChain = onchainConfig?.chains?.[String(battleEscrowChainId)];
   const battleEscrowReady =
     !isExternalBattle && onchainConfig?.contractEnabled === true && battleEscrowChain?.escrowSupportsChallengeLock === true;
-  const battleSlipHistory = p2pHistoryData?.positions || [];
   const handleBattleWatchRewardAward = useCallback(
     (points: number) => {
       const createdAt = new Date().toISOString();
@@ -4134,12 +4207,24 @@ export default function BattlesPage({
         throw new Error('Connect a Privy wallet to lock this stake.');
       }
 
-      const ticket = await apiRequest('POST', `/api/bantahbro/agent-battles/${encodeURIComponent(battle.id)}/p2p/stake`, {
-        sideId: stakeDialogSide.id,
-        stakeAmount: Number(stakeDialogAmount || 0),
-        stakeCurrency: battleEscrowToken,
-        walletAddress: walletAddress || undefined,
-      });
+      const isChallenge = Boolean(battle?.isChallenge && battle?.challengeCode);
+      const isLeftPick = stakeDialogSide.id === battle.sides[0].id;
+      const challengePick = isLeftPick ? 'YES' : 'NO';
+
+      const ticket = isChallenge
+        ? await apiRequest('POST', `/api/bantahbro/agent-challenges/${encodeURIComponent(battle.challengeCode!)}/prediction/stake`, {
+            side: challengePick,
+            stakeAmount: Number(stakeDialogAmount || 0),
+            stakeCurrency: battleEscrowToken,
+            walletAddress: walletAddress || undefined,
+          })
+        : await apiRequest('POST', `/api/bantahbro/agent-battles/${encodeURIComponent(battle.id)}/p2p/stake`, {
+            sideId: stakeDialogSide.id,
+            stakeAmount: Number(stakeDialogAmount || 0),
+            stakeCurrency: battleEscrowToken,
+            walletAddress: walletAddress || undefined,
+          });
+
       const escrowChallengeId = Number(ticket?.position?.escrowChallengeId || ticket?.pool?.escrowChallengeId);
       const escrowTokenSymbol = (ticket?.position?.escrowTokenSymbol || ticket?.pool?.escrowTokenSymbol || battleEscrowToken) as OnchainTokenSymbol;
       const escrowChainId = Number(ticket?.position?.escrowChainId || ticket?.pool?.escrowChainId || battleEscrowChainId);
@@ -4157,14 +4242,15 @@ export default function BattlesPage({
         amount: stakeDialogAmount,
       });
 
-      const locked = await apiRequest(
-        'POST',
-        `/api/bantahbro/agent-battles/p2p/positions/${encodeURIComponent(ticket.position.id)}/escrow`,
-        {
-          walletAddress: escrowTx.walletAddress,
-          escrowTxHash: escrowTx.escrowTxHash,
-        },
-      );
+      const escrowUrl = isChallenge
+        ? `/api/bantahbro/agent-challenges/prediction/positions/${encodeURIComponent(ticket.position.id)}/escrow`
+        : `/api/bantahbro/agent-battles/p2p/positions/${encodeURIComponent(ticket.position.id)}/escrow`;
+
+      const locked = await apiRequest('POST', escrowUrl, {
+        walletAddress: escrowTx.walletAddress,
+        escrowTxHash: escrowTx.escrowTxHash,
+      });
+
       return {
         ...ticket,
         position: locked?.position || ticket.position,
@@ -4175,8 +4261,13 @@ export default function BattlesPage({
       setDesktopChosenSideId(response.position.sideId);
       setQuickTradeSideIndex(response.position.sideId === battle?.sides?.[1]?.id ? 1 : 0);
       setStakeDialogSide(null);
-      tanstackQueryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agent-battles/p2p/pool'] });
-      tanstackQueryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agent-battles/p2p/positions/my'] });
+      if (battle?.isChallenge && battle?.challengeCode) {
+        tanstackQueryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agent-challenges/prediction/pool', battle.challengeCode] });
+        tanstackQueryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agent-challenges/prediction/positions/pool', battle.challengeCode] });
+      } else {
+        tanstackQueryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agent-battles/p2p/pool'] });
+        tanstackQueryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agent-battles/p2p/positions/my'] });
+      }
       toast({
         title: 'Battle stake escrow locked',
         description: response.message,

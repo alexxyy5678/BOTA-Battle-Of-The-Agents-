@@ -2470,6 +2470,7 @@ router.get("/stats/bantcredit", async (_req, res) => {
       earnedTransactionRow,
       onchainSupplyStats,
       onchainClaimableStats,
+      usdcEarnedRow,
     ] = await Promise.all([
       db
         .select({
@@ -2503,6 +2504,13 @@ router.get("/stats/bantcredit", async (_req, res) => {
         .catch((error) => ({ total: "0", count: "0", unavailable: true, error })),
       readOnchainBantCreditSupplyStats(),
       readOnchainClaimableBantCreditStats(),
+      db
+        .select({
+          total: sql<string>`COALESCE(SUM(${userRewardsClaims.amountUsdc}), 0)`,
+        })
+        .from(userRewardsClaims)
+        .then((rows) => rows[0])
+        .catch((error) => ({ total: "0" })),
     ]);
 
     const currentUserPoints = Math.max(0, Math.round(Number(userBalanceRow?.total || 0)));
@@ -2525,6 +2533,7 @@ router.get("/stats/bantcredit", async (_req, res) => {
       onchainClaimableCount: onchainClaimableStats.count,
       onchainChains: onchainSupplyStats.chains,
       earnedFromTransactions,
+      totalUsdcEarned: Math.max(0, Number(usdcEarnedRow?.total || 0)),
       userCount: Number(userBalanceRow?.count || 0),
       agentCount: Number(agentBalanceRow?.count || 0),
       rewardTransactionCount: Number(earnedTransactionRow?.count || 0),
@@ -2559,6 +2568,7 @@ router.get("/rewards", async (req, res) => {
       recentRewardRows,
       onchainSupplyStats,
       onchainClaimableStats,
+      usdcEarnedRow,
     ] =
       await Promise.all([
         db
@@ -2612,6 +2622,13 @@ router.get("/rewards", async (req, res) => {
           .catch(() => []),
         readOnchainBantCreditSupplyStats(),
         readOnchainClaimableBantCreditStats(),
+        db
+          .select({
+            total: sql<string>`COALESCE(SUM(${userRewardsClaims.amountUsdc}), 0)`,
+          })
+          .from(userRewardsClaims)
+          .then((rows) => rows[0])
+          .catch(() => ({ total: "0" })),
       ]);
 
     const currentUserPoints = Math.max(0, Math.round(Number(userBalanceRow?.total || 0)));
@@ -2633,6 +2650,7 @@ router.get("/rewards", async (req, res) => {
       onchainClaimableCount: onchainClaimableStats.count,
       onchainChains: onchainSupplyStats.chains,
       earnedFromTransactions,
+      totalUsdcEarned: Math.max(0, Number(usdcEarnedRow?.total || 0)),
       userCount: Number(userBalanceRow?.count || 0),
       agentCount: Number(agentBalanceRow?.count || 0),
       rewardTransactionCount: Number(earnedTransactionRow?.count || 0),
@@ -2661,6 +2679,7 @@ router.get("/rewards", async (req, res) => {
           referralCount: 0,
           activeReferralCount: 0,
           onchainClaimableBantCredits: 0,
+          usdcEarned: 0,
         },
         rewards: publicRewards,
         onchainClaims: emptyOnchainClaims,
@@ -2717,6 +2736,7 @@ router.get("/rewards", async (req, res) => {
         referralCount: referralRows.length,
         activeReferralCount: referralRows.filter((item: any) => item?.status === "active").length,
         onchainClaimableBantCredits: onchainClaims.claimableBantCredits,
+        usdcEarned: Math.max(0, Number(balance?.usdcEarned || 0)),
       },
       rewards,
       onchainClaims,

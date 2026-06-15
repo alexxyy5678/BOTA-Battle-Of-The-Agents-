@@ -47,6 +47,7 @@ type BantCreditStatsResponse = {
   rewardTransactionCount: number
   basis: string
   updatedAt: string
+  totalUsdcEarned?: number
 }
 
 type AgentPvpChallengeSnapshot = {
@@ -595,8 +596,8 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
             <Menu size={20} />
           </button>
 
-          <div ref={searchRef} className="relative min-w-0 flex-none basis-[38vw] max-w-[9.75rem] sm:flex-1 sm:basis-auto sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg">
-            <div className="flex items-center bg-input rounded px-2.5 py-1.5 sm:px-3">
+          <div ref={searchRef} className="relative min-w-0 flex-none basis-12 max-w-[4rem] sm:flex-1 sm:basis-auto sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg transition-all duration-200 focus-within:max-w-[10rem] focus-within:basis-[30vw]">
+            <div className="flex items-center bg-input rounded px-2 sm:px-3 py-1.5">
               <Search size={16} className="text-muted-foreground shrink-0" />
               <input
                 type="text"
@@ -604,14 +605,14 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 placeholder="Search battles"
-                className="flex-1 bg-transparent text-sm outline-none pl-2 placeholder-muted-foreground"
+                className="w-full bg-transparent text-sm outline-none pl-1 sm:pl-2 placeholder:text-transparent sm:placeholder:text-muted-foreground"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground transition ml-1">
+                <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground transition ml-1 shrink-0">
                   <X size={14} />
                 </button>
               )}
-              <span className="text-xs text-muted-foreground hidden sm:block ml-1">/</span>
+              <span className="text-xs text-muted-foreground hidden sm:block ml-1 shrink-0">/</span>
             </div>
 
             {searchFocused && searchResults.length > 0 && (
@@ -640,10 +641,11 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
           <button
             type="button"
             onClick={() => setParticipationOpen(true)}
-            className="hidden md:inline-flex h-8 shrink-0 items-center gap-1.5 rounded bg-primary px-3 text-xs font-black text-primary-foreground transition hover:opacity-90"
+            className="hidden md:inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary text-xs font-black text-primary-foreground transition hover:opacity-90"
+            title="How to Participate"
+            aria-label="How to Participate"
           >
             <BookOpen size={14} />
-            <span>How to Participate</span>
           </button>
 
           <div className="flex items-center gap-1.5 md:gap-2">
@@ -651,16 +653,22 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
               type="button"
               onClick={() => onNavigate?.('rewards')}
               title={bantCreditStats?.basis || 'Total BantCredit across Bantah ecosystem'}
-              className="hidden md:flex text-sm pr-3 pl-1.5 py-1 rounded-full items-center gap-2 border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-transparent hover:from-amber-500/20 transition shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+              className="flex text-sm pr-2 sm:pr-3 pl-1 sm:pl-1.5 py-1 rounded-full items-center gap-1 sm:gap-2 border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-transparent hover:from-amber-500/20 transition shadow-[0_0_12px_rgba(245,158,11,0.15)]"
             >
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-amber-600 shadow-inner">
-                <span className="text-[10px] font-black text-amber-950">BC</span>
+              <div className="flex shrink-0 items-center justify-center animate-pulse drop-shadow-md">
+                <span className="text-sm sm:text-base">💎</span>
               </div>
               <div className="flex flex-col items-start justify-center gap-0.5">
-                <span className="text-[9px] font-bold uppercase tracking-wider leading-none text-amber-500/80">Platform BC</span>
-                <span className="text-xs font-black leading-none text-amber-500">
-                  {bantCreditStatsLoading ? '...' : formatCompact(bantCreditStats?.lifetimeEarned)}
-                </span>
+                <span className="hidden sm:block text-[9px] font-bold uppercase tracking-wider leading-none text-amber-500/80">BC Earned</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black leading-none text-amber-500">
+                    {bantCreditStatsLoading ? '...' : formatCompact(bantCreditStats?.lifetimeEarned)}
+                  </span>
+                  <span className="text-[10px] text-amber-500/40">|</span>
+                  <span className="text-xs font-black leading-none text-green-500">
+                    ${formatCompact(bantCreditStats?.totalUsdcEarned || 0)}
+                  </span>
+                </div>
               </div>
             </button>
             <button

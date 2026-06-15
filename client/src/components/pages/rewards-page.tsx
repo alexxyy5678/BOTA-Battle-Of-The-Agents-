@@ -61,6 +61,7 @@ type RewardsResponse = {
     onchainClaimableBantCredits?: number
     onchainClaimableCount?: number
     rewardTransactionCount: number
+    totalUsdcEarned?: number
     updatedAt: string
   }
   viewer: {
@@ -70,6 +71,7 @@ type RewardsResponse = {
     referralCount: number
     activeReferralCount: number
     onchainClaimableBantCredits?: number
+    usdcEarned?: number
   }
   rewards: RewardRow[]
   onchainClaims?: OnchainClaimsFeed
@@ -230,7 +232,7 @@ export default function RewardsPage() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-6">
               <div>
                 <div className="text-lg font-black text-foreground">
                   {formatNumber(signedIn ? data?.viewer?.points : data?.stats?.lifetimeEarned)}
@@ -244,6 +246,12 @@ export default function RewardsPage() {
                   {formatNumber(data?.stats?.currentUserPoints)}
                 </div>
                 <div className="text-[10px] uppercase text-muted-foreground">User credits</div>
+              </div>
+              <div>
+                <div className="text-lg font-black text-foreground text-green-500">
+                  ${formatNumber(signedIn ? data?.viewer?.usdcEarned : data?.stats?.totalUsdcEarned)}
+                </div>
+                <div className="text-[10px] uppercase text-muted-foreground">USDC Earned</div>
               </div>
               <div>
                 <div className="text-lg font-black text-foreground">

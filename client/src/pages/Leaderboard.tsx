@@ -263,8 +263,11 @@ export default function Leaderboard() {
                 </p>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                    {entry.points}
+                    {entry.points} BC
                   </span>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400">
+                    <span>${entry.usdcEarned?.toLocaleString() || 0} USDC Earned</span>
+                  </div>
                   <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
                     <Coins className="w-3 h-3" />
                     <span>{entry.coins?.toLocaleString() || 0}</span>
@@ -410,16 +413,23 @@ export default function Leaderboard() {
                 username: entry.username,
               }, "player")}
             </p>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-3 mt-0.5">
               <span
-                className={`text-xs font-medium ${
+                className={`text-xs font-semibold ${
                   isCurrentUser
                     ? "text-blue-200"
-                    : "text-slate-500 dark:text-slate-400"
+                    : "text-amber-700 dark:text-amber-300"
                 }`}
               >
-                {entry.points}
+                {entry.points} BC
               </span>
+              <div className={`flex items-center gap-1 text-xs font-semibold ${
+                  isCurrentUser
+                    ? "text-green-300"
+                    : "text-green-600 dark:text-green-400"
+                }`}>
+                <span>${entry.usdcEarned?.toLocaleString() || 0} USDC Earned</span>
+              </div>
               <div className={`flex items-center gap-1 text-xs ${
                 isCurrentUser
                   ? "text-amber-200"

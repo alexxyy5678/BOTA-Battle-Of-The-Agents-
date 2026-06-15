@@ -165,4 +165,11 @@ export function registerCronRoutes(app: Express) {
       return result;
     }),
   );
+
+  app.get("/api/cron/rewards-distribution", (req, res) =>
+    runCronJob(req, res, "rewards-distribution", async () => {
+      const { rewardsPoolService } = await import("./rewardsPoolService");
+      return await rewardsPoolService.executeWeeklyDistribution();
+    }),
+  );
 }

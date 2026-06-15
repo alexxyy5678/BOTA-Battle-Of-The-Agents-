@@ -645,6 +645,20 @@ export function FightingGameArenaEmbed({
             </div>
           </div>
           <div ref={dialogRef} className="dialog" />
+          <div className="absolute left-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2">
+            {leftSide?.loadoutTools?.slice(0, 4).map((tool, idx) => (
+              <div key={`l-tool-${idx}`} className="flex h-8 w-8 md:h-11 md:w-11 items-center justify-center rounded-lg border border-white/20 bg-black/50 shadow-[0_0_12px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-transform hover:scale-110">
+                <img src={tool.imageUrl} alt={tool.name} title={tool.name} className="h-4/5 w-4/5 object-contain drop-shadow-md" />
+              </div>
+            ))}
+          </div>
+          <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2">
+            {rightSide?.loadoutTools?.slice(0, 4).map((tool, idx) => (
+              <div key={`r-tool-${idx}`} className="flex h-8 w-8 md:h-11 md:w-11 items-center justify-center rounded-lg border border-white/20 bg-black/50 shadow-[0_0_12px_rgba(0,0,0,0.6)] backdrop-blur-sm transition-transform hover:scale-110">
+                <img src={tool.imageUrl} alt={tool.name} title={tool.name} className="h-4/5 w-4/5 object-contain drop-shadow-md" />
+              </div>
+            ))}
+          </div>
           <div className="arena-live-stats" aria-label="Live spectator and BantCredit stats">
             <div className="arena-live-badge arena-live-badge--spectators" aria-label="Live spectators">
               <img

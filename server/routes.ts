@@ -1,4 +1,4 @@
-﻿import type { Express, Request, Response } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import fs from "fs";
@@ -10571,6 +10571,7 @@ export async function registerRoutes(app: Express, upload?: any): Promise<Server
   app.use('/api/admin/notifications', adminNotificationsApi);
   app.use('/api/agents', agentsApi);
   app.use('/api/bantahbro', bantahBroApi);
+  app.use('/api/rewards-pool', (await import('./routes/rewardsPoolApi')).rewardsPoolApiRouter);
   app.use('/api', ogMetadataRouter);
 
   // ============ PAIRING ENGINE ROUTES ============

@@ -968,14 +968,14 @@ class GameEngine {
       attack: [],
       // Sword clanks removed: slash/slashImpact now always use magic synth profiles
       slash: [],
-      fireSlash: [sfx("heavy-hit.wav")],
-      hit: [sfx("body-hit.wav"), sfx("heavy-hit.wav")],
+      fireSlash: [sfx("heavy-hit-new.mp3")],
+      hit: [sfx("body-hit-new.mp3"), sfx("heavy-hit-new.mp3")],
       slashImpact: [],
-      fireImpact: [sfx("heavy-hit.wav"), sfx("smoke-puff.mp3")],
-      shield: [sfx("shield-block.wav")],
-      shieldImpact: [sfx("shield-block.wav")],
-      dodge: [sfx("smoke-puff.mp3")],
-      death: [sfx("heavy-hit.wav")],
+      fireImpact: [sfx("heavy-hit-new.mp3"), sfx("smoke-puff-new.mp3")],
+      shield: [sfx("shield-block-new.mp3")],
+      shieldImpact: [sfx("shield-block-new.mp3")],
+      dodge: [sfx("smoke-puff-new.mp3")],
+      death: [sfx("heavy-hit-new.mp3")],
     };
   }
 
@@ -3161,8 +3161,9 @@ class GameEngine {
       watchReward?.earned,
       watchReward?.bantCredits,
     ];
-    const value = candidates.find((candidate) => Number.isFinite(Number(candidate)));
-    return this.normalizeArenaStat(value);
+    const valid = candidates.map(Number).filter(Number.isFinite);
+    if (valid.length === 0) return 0;
+    return this.normalizeArenaStat(Math.max(...valid));
   }
 
   readArenaSpectators(state) {
@@ -3253,7 +3254,7 @@ class GameEngine {
   }
 
   applyArenaHud(state, watchReward = null) {
-    this.updateArenaLiveStats(state, watchReward);
+    // this.updateArenaLiveStats(state, watchReward); // Disabled to allow React to manage the live pulse and watch rewards
     const sideStates = [state.left, state.right];
     sideStates.forEach((side, index) => {
       const fighter = this.fighters[index];

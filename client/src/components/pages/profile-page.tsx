@@ -66,6 +66,7 @@ type RewardsProfileResponse = {
     points?: number
     referralCount?: number
     onchainClaimableBantCredits?: number
+    usdcEarned?: number
   }
   onchainClaims?: OnchainClaimsFeed
 }
@@ -486,16 +487,17 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <div className="mt-2 grid grid-cols-4 gap-1.5">
+          <div className="mt-2 grid grid-cols-5 gap-1.5">
             {[
               ['Fighters', formatNumber(profileData?.summary?.fighters || 0)],
               ['Queue', formatNumber(queueRows.length)],
               ['BantCredit', formatNumber(displayedBantCredits)],
               ['BANTC claim', formatNumber(claimableBantCredits)],
+              ['Earned USDC', `$${formatNumber(rewardsData?.viewer?.usdcEarned || 0)}`],
             ].map(([label, value]) => (
               <div key={label} className="rounded border border-border/70 bg-muted/25 px-2 py-1.5">
                 <div className="truncate text-[10px] font-semibold uppercase text-muted-foreground">{label}</div>
-                <div className="truncate text-xs font-black text-foreground">{value}</div>
+                <div className={`truncate text-xs font-black ${label === 'Earned USDC' ? 'text-green-500' : 'text-foreground'}`}>{value}</div>
               </div>
             ))}
           </div>

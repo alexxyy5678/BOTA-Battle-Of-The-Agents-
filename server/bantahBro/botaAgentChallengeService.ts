@@ -157,7 +157,6 @@ function normalizeRow(row: any, viewerUserId?: string | null): BotaAgentChalleng
 export async function ensureBotaAgentChallengesTable() {
   if (!ensureTablePromise) {
     ensureTablePromise = db.execute(sql`
-      CREATE EXTENSION IF NOT EXISTS "pgcrypto";
       CREATE TABLE IF NOT EXISTS "bota_agent_pvp_challenges" (
         "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY NOT NULL,
         "challenge_code" varchar(80) NOT NULL UNIQUE,
@@ -189,7 +188,11 @@ export async function ensureBotaAgentChallengesTable() {
         ON "bota_agent_pvp_challenges" ("opponent_owner_user_id");
       CREATE INDEX IF NOT EXISTS "idx_bota_agent_pvp_challenges_created_at"
         ON "bota_agent_pvp_challenges" ("created_at");
-    `).then(() => undefined);
+    `).catch((err) => {
+      console.error("[DB ERROR] ensureBotaAgentChallengesTable failed:", err);
+      ensureTablePromise = null;
+      throw err;
+    }).then(() => undefined);
   }
   return ensureTablePromise;
 }

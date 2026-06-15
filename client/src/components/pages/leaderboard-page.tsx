@@ -23,7 +23,7 @@ import {
 } from '@/lib/bantahbro/fighterIdentity';
 
 type SourceFilter = 'all' | 'ens' | 'eliza' | 'virtuals' | 'bankr' | 'agentkit' | 'game-sdk' | 'meme' | 'nft' | 'bota';
-type SortMode = 'score' | 'wins' | 'bantcredits';
+type SortMode = 'earnings' | 'wins' | 'challenges';
 
 interface FighterProfilesFeed {
   profiles: BotaFighterProfile[];
@@ -50,6 +50,7 @@ interface LeaderboardEntry {
   avatarUrl: string;
   title: string;
   league: string;
+  usdcEarned: number;
 }
 
 const sourceFilters: Array<{ value: SourceFilter; label: string }> = [
@@ -181,6 +182,7 @@ function profileToEntry(profile: BotaFighterProfile, index: number): Leaderboard
     !Array.isArray(profile.metadata.arenaRecordStats)
     ? profile.metadata.arenaRecordStats as Record<string, unknown>
     : null;
+  const usdcEarned = Math.max(0, Math.round(Number((profile as any).usdcEarned || profile.metadata?.usdcEarned || 0)));
   const challenges = Math.max(
     profile.wins + profile.losses,
     Math.round(Number(profile.challengeVolume || arenaRecordStats?.matches || 0)),
@@ -209,6 +211,7 @@ function profileToEntry(profile: BotaFighterProfile, index: number): Leaderboard
     }),
     title: fighterTitle(profile),
     league: profile.league,
+    usdcEarned,
   };
 }
 
@@ -220,12 +223,11 @@ function formatBantCredits(value: number) {
 }
 
 function scoreLabel(entry: LeaderboardEntry, sortMode: SortMode) {
-  if (sortMode === 'bantcredits') return formatBantCredits(entry.bantCredits);
   return `${entry.score} pts`;
 }
 
 export default function LeaderboardPage() {
-  const [sortMode, setSortMode] = useState<SortMode>('score');
+  const [sortMode, setSortMode] = useState<SortMode>('earnings');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const { data, isLoading } = useQuery<FighterProfilesFeed>({
     queryKey: ['/api/bantahbro/fighter-profiles', { limit: '100', refreshLive: 'true' }],
@@ -240,8 +242,8 @@ export default function LeaderboardPage() {
       .filter((entry) => sourceFilter === 'all' || entry.origin === sourceFilter)
       .sort((left, right) => {
         if (sortMode === 'wins') return right.wins - left.wins || right.score - left.score;
-        if (sortMode === 'bantcredits') return right.bantCredits - left.bantCredits || right.score - left.score;
-        return right.score - left.score || right.wins - left.wins;
+        if (sortMode === 'challenges') return right.challenges - left.challenges || right.score - left.score;
+        return right.usdcEarned - left.usdcEarned || right.score - left.score;
       })
       .map((entry, index) => ({
         ...entry,
@@ -279,42 +281,17 @@ export default function LeaderboardPage() {
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       <div className="flex-1 flex flex-col bg-card border border-border rounded overflow-hidden">
         <div className="border-b border-border bg-background px-4 py-3">
-          <div className="flex items-center gap-2 mb-3">
-            <Trophy size={18} className="text-primary" />
-            <span className="font-bold text-foreground">Leaderboard</span>
-          </div>
-
-          <div className="flex flex-col gap-2 md:flex-row md:items-center">
-            <div className="-mx-1 overflow-x-auto pb-1 md:mx-0 md:flex-1 md:overflow-visible md:pb-0">
-              <div className="flex w-max min-w-full items-center gap-1.5 px-1 md:w-auto md:min-w-0 md:flex-wrap md:px-0">
-                {sourceFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    onClick={() => setSourceFilter(filter.value)}
-                    className={`shrink-0 rounded border px-2 py-1 text-[11px] font-black transition ${
-                      sourceFilter === filter.value
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {filter.label}
-                    <span className="ml-1 opacity-70">{sourceCounts[filter.value] || 0}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex w-full overflow-hidden rounded bg-muted text-xs font-bold md:ml-auto md:w-auto md:shrink-0">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
+            <div className="flex w-full overflow-hidden rounded bg-muted text-xs font-bold md:w-auto md:shrink-0">
               {([
-                ['score', 'Top Score'],
+                ['earnings', 'Top Earnings'],
                 ['wins', 'Most Wins'],
-                ['bantcredits', 'Top BantCredit'],
+                ['challenges', 'Top Challenges'],
               ] as const).map(([value, label]) => (
                 <button
                   key={value}
                   onClick={() => setSortMode(value)}
-                  className={`flex-1 px-2.5 py-1.5 transition md:flex-none md:px-3 ${sortMode === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`flex-1 px-1 py-1 text-[10px] sm:text-xs sm:px-3 sm:py-1.5 transition md:flex-none ${sortMode === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {label}
                 </button>
@@ -356,80 +333,86 @@ export default function LeaderboardPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-12 px-4 py-2 text-xs font-bold text-muted-foreground bg-background border-b border-border">
-            <div className="col-span-1">#</div>
-            <div className="col-span-4">Agent</div>
-            <div className="col-span-2 text-center hidden sm:block">Source</div>
-            <div className="col-span-2 text-center hidden sm:block">Wins</div>
-            <div className="col-span-3 text-right">{sortMode === 'bantcredits' ? 'BantCredit' : 'Score'}</div>
-          </div>
+          <div className="overflow-x-auto w-full">
+            <div className="min-w-[700px]">
+              <div className="grid grid-cols-12 px-4 py-2 text-xs font-bold text-muted-foreground bg-background border-b border-border">
+                <div className="col-span-1">#</div>
+                <div className="col-span-3">Agent</div>
+                <div className="col-span-2 text-center">Earnings</div>
+                <div className="col-span-2 text-center">Score</div>
+                <div className="col-span-2 text-center">Source</div>
+                <div className="col-span-2 text-right">Wins</div>
+              </div>
 
-          {isLoading ? (
-            <div className="p-3 space-y-2">
-              {Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className="flex items-center gap-3 p-2">
-                  <Skeleton className="w-6 h-6 rounded" />
-                  <Skeleton className="w-9 h-9 rounded-full" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-3 w-20" />
-                  </div>
-                  <Skeleton className="h-4 w-24" />
+              {isLoading ? (
+                <div className="p-3 space-y-2">
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <div key={index} className="flex items-center gap-3 p-2">
+                      <Skeleton className="w-6 h-6 rounded" />
+                      <Skeleton className="w-9 h-9 rounded-full" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {entries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className={`grid grid-cols-12 items-center px-4 py-3 transition ${entry.rank <= 3 ? 'bg-primary/5' : 'bg-background'} hover:bg-muted/30`}
-                >
-                  <div className="col-span-1">
-                    {entry.badge ? (
-                      <span className="text-xs font-black text-primary">{entry.badge}</span>
-                    ) : (
-                      <span className="text-sm font-bold text-muted-foreground">{entry.rank}</span>
-                    )}
-                  </div>
-                  <div className="col-span-5 sm:col-span-4 flex items-center gap-2 min-w-0">
-                    <span className="relative h-11 w-11 shrink-0">
-                      <img
-                        src={entry.avatarUrl}
-                        alt={botaCharacterAlt(entry.name)}
-                        className="h-11 w-11 rounded-full border border-border bg-black object-cover object-center p-0"
-                        loading="lazy"
-                      />
-                      <span className="absolute -bottom-1 -right-1">
-                        <IdentityLogo entry={entry} size="h-4 w-4" />
-                      </span>
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-sm font-bold text-foreground">{entry.name}</span>
+              ) : (
+                <div className="divide-y divide-border">
+                  {entries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`grid grid-cols-12 items-center px-4 py-3 transition ${entry.rank <= 3 ? 'bg-primary/5' : 'bg-background'} hover:bg-muted/30`}
+                    >
+                      <div className="col-span-1">
+                        {entry.badge ? (
+                          <span className="text-xs font-black text-primary">{entry.badge}</span>
+                        ) : (
+                          <span className="text-sm font-bold text-muted-foreground">{entry.rank}</span>
+                        )}
+                      </div>
+                      <div className="col-span-3 flex items-center gap-2 min-w-0">
+                        <span className="relative h-11 w-11 shrink-0">
+                          <img
+                            src={entry.avatarUrl}
+                            alt={botaCharacterAlt(entry.name)}
+                            className="h-11 w-11 rounded-full border border-border bg-black object-cover object-center p-0"
+                            loading="lazy"
+                          />
+                          <span className="absolute -bottom-1 -right-1">
+                            <IdentityLogo entry={entry} size="h-4 w-4" />
+                          </span>
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-sm font-bold text-foreground">{entry.name}</span>
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {entry.handle || entry.title}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-span-2 flex flex-col items-center justify-center">
+                        <span className="text-sm font-mono font-bold text-green-500">${entry.usdcEarned?.toLocaleString()}</span>
+                        <span className="text-[10px] font-mono font-bold text-amber-500">{entry.bantCredits?.toLocaleString()} BC</span>
+                      </div>
+                      <div className="col-span-2 text-center">
+                        <div className="text-sm font-mono font-bold text-secondary">
+                          {scoreLabel(entry, sortMode)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {entry.challenges} challenges
+                        </div>
+                      </div>
+                      <div className="col-span-2 place-items-center grid">
                         <SourceIcon entry={entry} />
                       </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {entry.handle || entry.title}
+                      <div className="col-span-2 text-right">
+                        <span className="text-sm font-mono text-muted-foreground">{entry.wins}</span>
                       </div>
                     </div>
-                  </div>
-                  <div className="col-span-2 hidden place-items-center sm:grid">
-                    <SourceIcon entry={entry} />
-                  </div>
-                  <div className="col-span-2 hidden text-center sm:block">
-                    <span className="text-sm font-mono text-muted-foreground">{entry.wins}</span>
-                  </div>
-                  <div className="col-span-6 text-right sm:col-span-3">
-                    <div className="text-sm font-mono font-bold text-secondary">
-                      {scoreLabel(entry, sortMode)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {entry.challenges} challenges · {entry.league}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  ))}
 
               {entries.length === 0 && (
                 <div className="px-4 py-6 text-sm text-muted-foreground">
@@ -438,6 +421,8 @@ export default function LeaderboardPage() {
               )}
             </div>
           )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -19,10 +19,10 @@ const rejectUnauthorized =
       : false;
 const poolMaxRaw = Number(process.env.DB_POOL_MAX || "");
 const poolMax = Number.isFinite(poolMaxRaw)
-  ? Math.max(1, Math.min(20, Math.floor(poolMaxRaw)))
+  ? Math.max(1, Math.min(40, Math.floor(poolMaxRaw)))
   : isProd
-    ? 10
-    : 5;
+    ? 25
+    : 10;
 
 type DatabaseIdentity = {
   host: string;
@@ -67,8 +67,8 @@ export const pool = new Pool({
   },
   // Keep bounded but allow concurrency; max=1 can bottleneck challenge feed queries.
   max: poolMax,
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 5000, // Close idle connections after 5s so Vercel doesn't freeze them
+  connectionTimeoutMillis: 20000,
+  idleTimeoutMillis: 10000, // Close idle connections after 10s so Vercel doesn't freeze them
   allowExitOnIdle: true, // Prevent the event loop from hanging on Vercel
 });
 

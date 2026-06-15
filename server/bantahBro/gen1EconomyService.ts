@@ -191,6 +191,7 @@ function rarityRank(rarity: string | null | undefined) {
 export async function ensureGen1EconomyTables() {
   if (!ensureGen1EconomyTablesPromise) {
     ensureGen1EconomyTablesPromise = (async () => {
+      try {
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS "tool_seasons" (
           "season_id" varchar(80) PRIMARY KEY NOT NULL,
@@ -306,6 +307,9 @@ export async function ensureGen1EconomyTables() {
       await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_fighter_listings_agent" ON "fighter_listings" ("agent_id")`);
       await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_fighter_listings_seller" ON "fighter_listings" ("seller_user_id")`);
       await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_fighter_listings_status" ON "fighter_listings" ("status")`);
+      } catch (err) {
+        console.warn('Skipped DDL in ensureGen1EconomyTables (likely connection pooler):', err instanceof Error ? err.message : String(err));
+      }
     })();
   }
   return ensureGen1EconomyTablesPromise;
@@ -600,16 +604,25 @@ export async function purchaseListing(params: { listingId: string; buyerUserId: 
 }
 
 export async function ensureListingReservationsTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS "listing_reservations" (
-      "listing_id" varchar(180) PRIMARY KEY NOT NULL REFERENCES "listings" ("listing_id") ON DELETE CASCADE,
-      "reserver_user_id" varchar(180) NOT NULL,
-      "reserved_at" timestamp NOT NULL DEFAULT now(),
-      "reserved_until" timestamp
-    );
-  `);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_listing_reservations_reserver" ON "listing_reservations" ("reserver_user_id");`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_listing_reservations_reserved_until" ON "listing_reservations" ("reserved_until");`);
+  if (!ensureListingReservationsTablePromise) {
+    ensureListingReservationsTablePromise = (async () => {
+      try {
+        await db.execute(sql`
+          CREATE TABLE IF NOT EXISTS "listing_reservations" (
+            "listing_id" varchar(180) PRIMARY KEY NOT NULL REFERENCES "listings" ("listing_id") ON DELETE CASCADE,
+            "reserver_user_id" varchar(180) NOT NULL,
+            "reserved_at" timestamp NOT NULL DEFAULT now(),
+            "reserved_until" timestamp
+          );
+        `);
+        await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_listing_reservations_reserver" ON "listing_reservations" ("reserver_user_id");`);
+        await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_listing_reservations_reserved_until" ON "listing_reservations" ("reserved_until");`);
+      } catch (err) {
+        console.warn('Skipped DDL in ensureListingReservationsTable:', err instanceof Error ? err.message : String(err));
+      }
+    })();
+  }
+  return ensureListingReservationsTablePromise;
 }
 
 async function cleanupExpiredListingReservationForListing(tx: any, listingId: string) {
