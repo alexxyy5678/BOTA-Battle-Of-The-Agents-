@@ -1,4 +1,5 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useSolanaWallets } from "@privy-io/react-auth/solana";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -6,10 +7,14 @@ type WalletLike = {
   address?: string | null;
 };
 
+import { isEVMAddress, isSolanaAddress } from "@/lib/utils";
+
 function normalizeWalletAddress(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const value = input.trim();
-  return /^0x[a-fA-F0-9]{40}$/.test(value) ? value : null;
+  if (isEVMAddress(value)) return value;
+  if (isSolanaAddress(value)) return value;
+  return null;
 }
 
 export function getPreferredOnchainWalletAddress(
@@ -50,6 +55,7 @@ export function getPreferredOnchainWalletAddress(
 export function useEnsureOnchainWallet() {
   const { isAuthenticated, login, user } = useAuth();
   const { wallets, ready: walletsReady } = useWallets();
+  const { solanaWallets } = useSolanaWallets();
   const { connectOrCreateWallet } = usePrivy();
 
   const ensureOnchainWallet = async (intentLabel = "continue") => {
@@ -83,6 +89,7 @@ export function useEnsureOnchainWallet() {
   return {
     ensureOnchainWallet,
     wallets,
+    solanaWallets,
     walletsReady,
   };
 }

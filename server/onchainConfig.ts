@@ -3,6 +3,7 @@ import {
   DEFAULT_ONCHAIN_TESTNET_CHAINS,
   normalizeOnchainTokenSymbol,
   normalizeEvmAddress,
+  normalizeOnchainAddress,
   type OnchainExecutionMode,
   type OnchainChainConfig,
   type OnchainChainKey,
@@ -36,7 +37,7 @@ function chainKeyToEnvPrefix(key: OnchainChainKey): string {
 
 function parseEnabledChainIds(value: string | undefined): number[] {
   if (!value || !value.trim()) {
-    return [8453, 56, 42161, 42220, 130];
+    return [8453, 56, 42161, 42220, 130, 1399811149];
   }
   const parsed = value
     .split(",")
@@ -44,7 +45,7 @@ function parseEnabledChainIds(value: string | undefined): number[] {
     .filter((entry) => Number.isInteger(entry) && entry > 0);
   return parsed.length > 0
     ? Array.from(new Set(parsed))
-    : [84532, 97, 421614, 11142220, 1301];
+    : [84532, 97, 421614, 11142220, 1301, 900001];
 }
 
 function parseExecutionMode(value: string | undefined): OnchainExecutionMode {
@@ -61,7 +62,7 @@ function withEnvTokenOverride(
   const prefix = chainKeyToEnvPrefix(chain.key);
   const envKeyByChainName = `ONCHAIN_${prefix}_${symbol}_ADDRESS`;
   const envKeyByChainId = `ONCHAIN_${chain.chainId}_${symbol}_ADDRESS`;
-  const envAddress = normalizeEvmAddress(
+  const envAddress = normalizeOnchainAddress(
     process.env[envKeyByChainName] || process.env[envKeyByChainId],
   );
   return {
@@ -77,19 +78,21 @@ function withEnvChainOverride(chain: OnchainChainConfig): OnchainChainConfig {
     process.env[`ONCHAIN_${prefix}_RPC_URL`] ||
     process.env[`ONCHAIN_${chain.chainId}_RPC_URL`] ||
     chain.rpcUrl;
-  const escrowContractAddress = normalizeEvmAddress(
-    process.env[`ONCHAIN_${prefix}_ESCROW_ADDRESS`] ||
-      process.env[`ONCHAIN_${chain.chainId}_ESCROW_ADDRESS`],
+  const escrowContractAddress = normalizeOnchainAddress(
+    process.env.SOLANA_TREASURY_WALLET && chain.key.startsWith("solana") 
+      ? process.env.SOLANA_TREASURY_WALLET 
+      : (process.env[`ONCHAIN_${prefix}_ESCROW_ADDRESS`] ||
+      process.env[`ONCHAIN_${chain.chainId}_ESCROW_ADDRESS`]),
   );
-  const bantCreditsAddress = normalizeEvmAddress(
+  const bantCreditsAddress = normalizeOnchainAddress(
     process.env[`ONCHAIN_${prefix}_BANTCREDITS_ADDRESS`] ||
       process.env[`ONCHAIN_${chain.chainId}_BANTCREDITS_ADDRESS`],
   );
-  const simBattleRegistryAddress = normalizeEvmAddress(
+  const simBattleRegistryAddress = normalizeOnchainAddress(
     process.env[`ONCHAIN_${prefix}_SIM_BATTLE_REGISTRY_ADDRESS`] ||
       process.env[`ONCHAIN_${chain.chainId}_SIM_BATTLE_REGISTRY_ADDRESS`],
   );
-  const bantCreditRewardsAddress = normalizeEvmAddress(
+  const bantCreditRewardsAddress = normalizeOnchainAddress(
     process.env[`ONCHAIN_${prefix}_BANTCREDIT_REWARDS_ADDRESS`] ||
       process.env[`ONCHAIN_${chain.chainId}_BANTCREDIT_REWARDS_ADDRESS`],
   );

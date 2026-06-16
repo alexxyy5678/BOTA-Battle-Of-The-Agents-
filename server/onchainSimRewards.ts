@@ -4,6 +4,8 @@ import {
   normalizeEvmAddress,
   type OnchainChainConfig,
 } from "@shared/onchainConfig";
+import { Connection, Keypair, Transaction, TransactionInstruction, PublicKey, sendAndConfirmTransaction } from "@solana/web3.js";
+import bs58 from "bs58";
 
 const SIM_BATTLE_REGISTRY_ABI = [
   "function owner() view returns (address)",
@@ -349,12 +351,20 @@ export async function recordSimulatedBattleOnchain(params: {
   totalBantCredits: bigint;
   txHash: string;
 }> {
-  const registryAddress = normalizeEvmAddress(params.chain.simBattleRegistryAddress);
-  if (!registryAddress) throw new Error(`SimBattleRegistry is not configured for ${params.chain.name}`);
+  const isSolana = params.chain.key.startsWith("solana");
+  let registryAddress: string | null = null;
+  if (!isSolana) {
+    registryAddress = normalizeEvmAddress(params.chain.simBattleRegistryAddress);
+    if (!registryAddress) throw new Error(`SimBattleRegistry is not configured for ${params.chain.name}`);
+  }
 
-  const ensOwner = normalizeEvmAddress(params.payload.ensOwner);
-  if (!ensOwner) throw new Error("Invalid ENS owner");
-  const winner = normalizeEvmAddress(params.payload.winner) || ethers.ZeroAddress;
+  const ensOwner = params.chain.key.startsWith("solana") 
+    ? params.payload.ensOwner 
+    : normalizeEvmAddress(params.payload.ensOwner);
+  if (!ensOwner && !params.chain.key.startsWith("solana")) throw new Error("Invalid ENS owner");
+  const winner = params.chain.key.startsWith("solana") 
+    ? params.payload.winner
+    : normalizeEvmAddress(params.payload.winner) || ethers.ZeroAddress;
   const metadata = computeSimBattleMetadataHash(params.payload);
   const rewardBatch = buildRewardBatch({ batchId: params.payload.battleId, rewards: params.payload.rewards });
 
@@ -380,9 +390,41 @@ export async function recordSimulatedBattleOnchain(params: {
     return { ...receiptPayload, txHash: "dry-run" };
   }
 
+  if (isSolana) {
+    const privateKeyStr = process.env.SOLANA_PRIVATE_KEY;
+    if (!privateKeyStr) {
+      throw new Error("SOLANA_PRIVATE_KEY is not configured for recording battles on Solana.");
+    }
+    const secretKey = bs58.decode(privateKeyStr);
+    const keypair = Keypair.fromSecretKey(secretKey);
+    const connection = new Connection(params.chain.rpcUrl, "confirmed");
+
+    const memoPayload = {
+      type: "BantahBattle",
+      battleId: receiptPayload.battleId,
+      winner,
+      ensOwner,
+      eventRoot: receiptPayload.eventRoot,
+      rewardRoot: receiptPayload.rewardRoot,
+      metadataHash: receiptPayload.metadataHash,
+      totalBantCredits: receiptPayload.totalBantCredits.toString()
+    };
+
+    const memoInstruction = new TransactionInstruction({
+      keys: [{ pubkey: keypair.publicKey, isSigner: true, isWritable: true }],
+      data: Buffer.from(JSON.stringify(memoPayload), "utf-8"),
+      programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+    });
+
+    const tx = new Transaction().add(memoInstruction);
+    const txHash = await sendAndConfirmTransaction(connection, tx, [keypair]);
+    
+    return { ...receiptPayload, txHash };
+  }
+
   const signer = await ownerSignerForContract({
     chain: params.chain,
-    contractAddress: registryAddress,
+    contractAddress: registryAddress!,
     contractLabel: "SimBattleRegistry",
     abi: SIM_BATTLE_REGISTRY_ABI,
   });
@@ -420,8 +462,12 @@ export async function setBantCreditRewardBatchOnchain(params: {
   leaves: RewardLeaf[];
   txHash: string;
 }> {
-  const rewardsAddress = normalizeEvmAddress(params.chain.bantCreditRewardsAddress);
-  if (!rewardsAddress) throw new Error(`BantCreditRewards is not configured for ${params.chain.name}`);
+  const isSolana = params.chain.key.startsWith("solana");
+  let rewardsAddress: string | null = null;
+  if (!isSolana) {
+    rewardsAddress = normalizeEvmAddress(params.chain.bantCreditRewardsAddress);
+    if (!rewardsAddress) throw new Error(`BantCreditRewards is not configured for ${params.chain.name}`);
+  }
 
   const batch = buildRewardBatch({ batchId: params.batchId, rewards: params.rewards });
   const metadataHash = optionalBytes32(params.metadataHash);
@@ -437,9 +483,46 @@ export async function setBantCreditRewardBatchOnchain(params: {
     };
   }
 
+  if (isSolana) {
+    const privateKeyStr = process.env.SOLANA_PRIVATE_KEY;
+    if (!privateKeyStr) {
+      throw new Error("SOLANA_PRIVATE_KEY is not configured for recording reward batches on Solana.");
+    }
+    const secretKey = bs58.decode(privateKeyStr);
+    const keypair = Keypair.fromSecretKey(secretKey);
+    const connection = new Connection(params.chain.rpcUrl, "confirmed");
+
+    const memoPayload = {
+      type: "BantahRewardBatch",
+      batchId: batch.batchId,
+      rewardRoot: batch.root,
+      metadataHash,
+      totalBantCredits: batch.totalBantCredits.toString(),
+      active: params.active !== false
+    };
+
+    const memoInstruction = new TransactionInstruction({
+      keys: [{ pubkey: keypair.publicKey, isSigner: true, isWritable: true }],
+      data: Buffer.from(JSON.stringify(memoPayload), "utf-8"),
+      programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+    });
+
+    const tx = new Transaction().add(memoInstruction);
+    const txHash = await sendAndConfirmTransaction(connection, tx, [keypair]);
+    
+    return {
+      batchId: batch.batchId,
+      rewardRoot: batch.root,
+      metadataHash,
+      totalBantCredits: batch.totalBantCredits,
+      leaves: batch.leaves,
+      txHash,
+    };
+  }
+
   const signer = await ownerSignerForContract({
     chain: params.chain,
-    contractAddress: rewardsAddress,
+    contractAddress: rewardsAddress!,
     contractLabel: "BantCreditRewards",
     abi: BANTCREDIT_REWARDS_ABI,
   });

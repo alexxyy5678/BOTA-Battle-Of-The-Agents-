@@ -142,9 +142,21 @@ function buildBantahBroRuntimeArtifacts(params: {
   walletProvider: string;
   skillActions: BantahSkillAction[];
   endpointUrl: string;
+  walletData?: unknown;
 }) {
   const telegramRuntime = getBantahBroTelegramRuntimeConfig();
   const pluginPackages = buildBantahBroPluginPackages(telegramRuntime.pluginPackages);
+  const settingsOverrides = { ...telegramRuntime.settingsOverrides };
+
+  if (params.walletProvider === "solana_agent_kit" && params.walletData) {
+    const wd = params.walletData as { secretKeyBase58?: string };
+    if (wd.secretKeyBase58) {
+      pluginPackages.push("@elizaos/plugin-solana");
+      settingsOverrides.SOLANA_PRIVATE_KEY = wd.secretKeyBase58;
+      settingsOverrides.SOLANA_PUBLIC_KEY = params.walletAddress;
+      settingsOverrides.SOLANA_RPC_URL = String(process.env.SOLANA_RPC_URL || "").trim() || "https://api.mainnet-beta.solana.com";
+    }
+  }
 
   const character = buildBantahBroElizaCharacter({
     agentId: params.agentId,
@@ -157,7 +169,7 @@ function buildBantahBroRuntimeArtifacts(params: {
     endpointUrl: params.endpointUrl,
     clients: telegramRuntime.clients,
     pluginPackages,
-    settingsOverrides: telegramRuntime.settingsOverrides,
+    settingsOverrides,
   });
 
   const runtime = buildBantahElizaRuntimeConfig({
@@ -250,7 +262,7 @@ async function getExistingSystemAgent(
 }
 
 function resolveWalletHealth(agent: StoredSystemAgent): BantahBroSystemAgentStatus["walletHealth"] {
-  if (agent.walletProvider === "cdp_smart_wallet") return "live";
+  if (agent.walletProvider === "cdp_smart_wallet" || agent.walletProvider === "solana_agent_kit") return "live";
   if (agent.walletProvider) return "error";
   return "missing";
 }
@@ -324,14 +336,15 @@ export async function ensureBantahBroSystemAgent(options: { preferLiveWallet?: b
       }
       const rebuilt = buildBantahBroRuntimeArtifacts({
         agentId: existing.agentId,
-        agentName: existing.agentName,
+        agentName: systemConfig.agentName,
         walletAddress: existing.walletAddress,
         chainId: parsedRuntime.chainId,
         chainName: parsedRuntime.chainName,
         walletNetworkId: existing.walletNetworkId || parsedRuntime.walletNetworkId,
-        walletProvider: existing.walletProvider,
+        walletProvider: existing.walletProvider || "cdp_smart_wallet",
         skillActions: [...BANTAHBRO_SYSTEM_SKILLS],
         endpointUrl: existing.endpointUrl,
+        walletData: existing.walletData,
       });
 
       await db
@@ -367,6 +380,7 @@ export async function ensureBantahBroSystemAgent(options: { preferLiveWallet?: b
     walletProvider: wallet.walletProvider,
     skillActions: [...BANTAHBRO_SYSTEM_SKILLS],
     endpointUrl,
+    walletData: wallet.walletData,
   });
 
   const created = await storage.createAgent({
@@ -430,9 +444,9 @@ export async function getBantahBroSystemAgentSnapshot() {
   if (!existing) {
     throw new Error("BantahBro system agent does not exist yet.");
   }
-  if (existing.walletProvider !== "cdp_smart_wallet") {
+  if (existing.walletProvider !== "cdp_smart_wallet" && existing.walletProvider !== "solana_agent_kit") {
     throw new Error(
-      `BantahBro system agent wallet is invalid for production (${existing.walletProvider || "missing"}). Reprovision with AgentKit.`,
+      `BantahBro system agent wallet is invalid for production (${existing.walletProvider || "missing"}). Reprovision with AgentKit or Solana Kit.`,
     );
   }
   return {

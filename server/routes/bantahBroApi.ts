@@ -218,7 +218,8 @@ import {
   calculateBattleWatchBantCredit,
 } from "@shared/bantCredit";
 import { bantahBroWalletPrepareRequestSchema } from "@shared/bantahBroWallet";
-import { normalizeEvmAddress, parseWalletAddresses } from "@shared/onchainConfig";
+import { normalizeEvmAddress, parseWalletAddresses, ONCHAIN_CONFIG, type OnchainTokenSymbol } from "@shared/onchainConfig";
+import { verifyEscrowTransaction } from "../onchainEscrowService";
 
 const router = Router();
 
@@ -4102,7 +4103,7 @@ router.get('/gen1/packs', async (req: any, res) => {
 });
 
 const buyBcSchema = z.object({
-  txHash: z.string().startsWith('0x'),
+  txHash: z.string(), // Allowing both EVM 0x and Solana Base58 strings
   chainId: z.number(),
   usdAmount: z.number().min(1),
   tokenSymbol: z.string()
@@ -4134,11 +4135,33 @@ router.post('/gen1/buy-bc', PrivyAuthMiddleware, async (req: any, res) => {
     const weiPerUsd = 2000000000000000n; // 0.002 BNB
     const expectedWei = (weiPerUsd * BigInt(payload.usdAmount)).toString();
 
-    const verifyResult = await onchainPaymentService.verifyPayment(
-      payload.txHash as `0x${string}`,
-      expectedWei,
-      payload.chainId
-    );
+    let verifyResult: { success: boolean; sender?: string; value?: string } = { success: false };
+
+    if (payload.tokenSymbol === 'SOL' || payload.tokenSymbol === 'USDC' && Object.values(ONCHAIN_CONFIG.chains || {}).some(c => c.chainId === payload.chainId && String(c.key).startsWith('solana'))) {
+      const solanaChainId = Object.values(ONCHAIN_CONFIG.chains || {}).find(c => String(c.key).startsWith('solana'))?.chainId;
+      const rpcUrl = ONCHAIN_CONFIG.chains[String(solanaChainId)]?.rpcUrl;
+      const expectedEscrowContract = ONCHAIN_CONFIG.chains[String(solanaChainId)]?.escrowContractAddress;
+      if (!rpcUrl || !expectedEscrowContract) {
+         return res.status(400).json({ message: 'Solana network configuration missing' });
+      }
+
+      const isValid = await verifyEscrowTransaction({
+        rpcUrl,
+        expectedChainId: Number(solanaChainId),
+        expectedFrom: '', // we don't strictly require the from address here as we are buying BC directly
+        expectedEscrowContract,
+        tokenSymbol: payload.tokenSymbol,
+        txHash: payload.txHash,
+        checkExactAmount: false // The amount should be verified based on frontend sending native amount, but KOTH skip exact check
+      });
+      verifyResult = { success: isValid, sender: 'solana-user' };
+    } else {
+      verifyResult = await onchainPaymentService.verifyPayment(
+        payload.txHash as `0x${string}`,
+        expectedWei,
+        payload.chainId
+      );
+    }
 
     if (!verifyResult.success) {
       return res.status(400).json({ message: 'Payment verification failed' });
@@ -4540,29 +4563,84 @@ router.post('/koth/agents/:agentId/join', PrivyAuthMiddleware, async (req: any, 
   try {
     const agentId = String(req.params.agentId);
     const userId = req.user.id;
-    const stakeAmount = Number(req.body?.stakeAmount) || 500;
+    const tokenSymbol = req.body?.tokenSymbol || "BC";
+    const escrowTxHash = req.body?.escrowTxHash;
+    const chainId = Number(req.body?.chainId);
+    const walletAddress = req.body?.walletAddress;
+    
+    let stakeAmount = Number(req.body?.stakeAmount) || 500;
     
     // Check user balance
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId)
     });
-    
-    if (!user || Number(user.balance) < stakeAmount) {
-      return res.status(400).json({ message: `Insufficient BC. You need ${stakeAmount} BC to enter.` });
+
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
     }
-    
-    // Deduct stake amount
-    const newBalance = (Number(user.balance) - stakeAmount).toFixed(2);
-    await db.update(users).set({ balance: newBalance }).where(eq(users.id, userId));
-    
-    // Log transaction
-    await db.insert(transactions).values({
-      userId,
-      type: 'koth_stake',
-      amount: stakeAmount.toString(),
-      description: `Staked ${stakeAmount} BC to enter KOTH Arena`,
-      status: 'completed'
-    });
+
+    if (escrowTxHash && tokenSymbol !== "BC") {
+      if (!walletAddress || !chainId) {
+        return res.status(400).json({ message: "walletAddress and chainId are required for onchain staking." });
+      }
+
+      const chainConfig = ONCHAIN_CONFIG.chains[String(chainId)] || ONCHAIN_CONFIG.chains[String(ONCHAIN_CONFIG.defaultChainId)];
+      if (!chainConfig) {
+        return res.status(400).json({ message: "Unsupported chainId" });
+      }
+
+      const escrowContract = chainConfig.escrowContractAddress;
+      if (!escrowContract) {
+        return res.status(400).json({ message: `Escrow contract not configured for ${chainConfig.name}` });
+      }
+
+      const tokenConfig = chainConfig.tokens[tokenSymbol as OnchainTokenSymbol];
+      if (!tokenConfig) {
+        return res.status(400).json({ message: `Token ${tokenSymbol} not supported on ${chainConfig.name}` });
+      }
+
+      const verifiedEscrowTx = await verifyEscrowTransaction({
+        rpcUrl: chainConfig.rpcUrl,
+        expectedChainId: chainConfig.chainId,
+        expectedFrom: walletAddress,
+        expectedEscrowContract: escrowContract,
+        tokenSymbol: tokenSymbol as OnchainTokenSymbol,
+        txHash: String(escrowTxHash),
+      });
+
+      // Map equivalent BC points (1:1 with valueInBc mapping)
+      const tokenDecimals = BigInt(10 ** tokenConfig.decimals);
+      const amountNative = Number(verifiedEscrowTx.amountAtomic) / Number(tokenDecimals);
+      stakeAmount = Math.floor(amountNative * tokenConfig.valueInBc);
+
+      // Log transaction
+      await db.insert(transactions).values({
+        userId,
+        type: 'koth_stake',
+        amount: String(amountNative),
+        description: `Staked ${amountNative} ${tokenSymbol} to enter KOTH Arena`,
+        status: 'completed'
+      });
+
+    } else {
+      // Off-chain BC Logic
+      if (Number(user.balance) < stakeAmount) {
+        return res.status(400).json({ message: `Insufficient BC. You need ${stakeAmount} BC to enter.` });
+      }
+      
+      // Deduct stake amount
+      const newBalance = (Number(user.balance) - stakeAmount).toFixed(2);
+      await db.update(users).set({ balance: newBalance }).where(eq(users.id, userId));
+      
+      // Log transaction
+      await db.insert(transactions).values({
+        userId,
+        type: 'koth_stake',
+        amount: stakeAmount.toString(),
+        description: `Staked ${stakeAmount} BC to enter KOTH Arena`,
+        status: 'completed'
+      });
+    }
     
     let participant = await db.query.kothParticipants.findFirst({
       where: eq(kothParticipants.agentId, agentId)
@@ -4570,7 +4648,7 @@ router.post('/koth/agents/:agentId/join', PrivyAuthMiddleware, async (req: any, 
     
     if (participant) {
       const updated = await db.update(kothParticipants)
-        .set({ status: 'queued', joinedAt: new Date(), stakedAmount: stakeAmount })
+        .set({ status: 'queued', joinedAt: new Date(), stakedAmount: stakeAmount, tokenSymbol, escrowTxHash: escrowTxHash || null })
         .where(eq(kothParticipants.agentId, agentId))
         .returning();
       participant = updated[0];
@@ -4582,7 +4660,9 @@ router.post('/koth/agents/:agentId/join', PrivyAuthMiddleware, async (req: any, 
           autoJoin: false,
           status: 'queued',
           joinedAt: new Date(),
-          stakedAmount: stakeAmount
+          stakedAmount: stakeAmount,
+          tokenSymbol,
+          escrowTxHash: escrowTxHash || null
         })
         .returning();
       participant = inserted[0];

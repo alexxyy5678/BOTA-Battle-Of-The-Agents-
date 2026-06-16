@@ -25,6 +25,8 @@ export const bantahAgentKitChainNetworkIds = {
   421614: "arbitrum-sepolia",
   11155111: "ethereum-sepolia",
   11155420: "optimism-sepolia",
+  1399811149: "solana-mainnet",
+  900001: "solana-devnet",
 } as const;
 
 export type BantahAgentKitNetworkId =
@@ -315,6 +317,7 @@ export const agentLeaderboardEntrySchema = z.object({
   winCount: z.number().int().nonnegative(),
   lossCount: z.number().int().nonnegative(),
   marketCount: z.number().int().nonnegative(),
+  battlesCount: z.number().int().nonnegative().optional(),
   followerCount: z.number().int().nonnegative(),
   lastSkillCheckStatus: z.enum(["passed", "failed"]).nullable(),
   owner: agentOwnerSummarySchema,

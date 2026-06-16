@@ -582,7 +582,7 @@ function FighterDetailOverlay({
 export default function MarketplacePage({ onNavigate }: { onNavigate?: (section: AppSection) => void }) {
   const { user } = useAuth()
   const { toast } = useToast()
-  const { ensureOnchainWallet, wallets: connectedWallets } = useEnsureOnchainWallet()
+  const { ensureOnchainWallet, wallets: connectedWallets, solanaWallets } = useEnsureOnchainWallet()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<MarketFilter>('all')
   const [selectedAgent, setSelectedAgent] = useState<MarketplaceAgent | null>(null)
@@ -886,6 +886,7 @@ export default function MarketplacePage({ onNavigate }: { onNavigate?: (section:
                 <select value={selectedTokenSymbol} onChange={(e) => setSelectedTokenSymbol(e.target.value as any)} className="h-6 rounded bg-transparent text-[10px] font-black uppercase outline-none text-foreground">
                   <option value="USDT">USDT</option>
                   <option value="BNB">BNB</option>
+                  <option value="SOL">SOL</option>
                 </select>
               </div>
             </div>
@@ -923,7 +924,7 @@ export default function MarketplacePage({ onNavigate }: { onNavigate?: (section:
                             setSelectedUsdAmount(amt)
                             setIsPurchasingBc(true)
                             const nativeAmount = String(amt)
-                            const { result, resp } = await purchaseBcWithWallet({ ensureOnchainWallet, wallets: connectedWallets as any, usdAmount: amt, nativeAmount, tokenSymbol: selectedTokenSymbol })
+                            const { result, resp } = await purchaseBcWithWallet({ ensureOnchainWallet, wallets: connectedWallets as any, solanaWallets: solanaWallets as any, usdAmount: amt, nativeAmount, tokenSymbol: selectedTokenSymbol })
                             queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] })
                             toast({ title: 'Purchase complete', description: `Minted ${resp?.addedBc || 'N/A'} BC.` })
                           } catch (error) {
@@ -1484,7 +1485,7 @@ export default function MarketplacePage({ onNavigate }: { onNavigate?: (section:
                   setIsPurchasingBc(true)
                   // for USDT we treat native amount as equal to USD amount (stable)
                   const nativeAmount = selectedTokenSymbol === 'USDT' ? String(selectedUsdAmount) : String(selectedUsdAmount)
-                  const { result, resp } = await purchaseBcWithWallet({ ensureOnchainWallet, wallets: connectedWallets as any, usdAmount: selectedUsdAmount, nativeAmount, tokenSymbol: selectedTokenSymbol })
+                  const { result, resp } = await purchaseBcWithWallet({ ensureOnchainWallet, wallets: connectedWallets as any, solanaWallets: solanaWallets as any, usdAmount: selectedUsdAmount, nativeAmount, tokenSymbol: selectedTokenSymbol })
                   // refresh auth user to pick up new points
                   queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] })
                   toast({ title: 'Purchase complete', description: `Minted ${resp?.mintedBc || 'N/A'} BC. New balance: ${resp?.balance ?? 'N/A'}` })

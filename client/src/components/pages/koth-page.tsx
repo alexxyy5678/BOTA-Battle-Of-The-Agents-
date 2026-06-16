@@ -11,6 +11,10 @@ import { useAuth } from '@/hooks/useAuth'
 import type { BotaProfileResponse } from '@shared/botaFighterProfile'
 import { useBotaInventory } from '@/hooks/useBotaInventory'
 import KothPhaserEngine from './KothPhaserEngine'
+import { useEnsureOnchainWallet } from "@/hooks/useEnsureOnchainWallet"
+import { type OnchainRuntimeConfig, type OnchainTokenSymbol, executeOnchainEscrowStakeTx } from "@/lib/onchainEscrow"
+import { useToast } from "@/hooks/use-toast"
+import { PlayfulLoading } from "@/components/ui/playful-loading"
 
 const MOCK_KOTH_AGENTS = [
   { id: 'agent_1', name: 'Alpha Bot', avatarUrl: arenaAgentAvatar('1') },
@@ -79,6 +83,11 @@ export default function KingOfTheHillPage() {
   const [isMobileTrollboxOpen, setIsMobileTrollboxOpen] = useState(false)
   const [joinStatus, setJoinStatus] = useState<'idle' | 'loadout' | 'joining' | 'success' | 'fail'>('idle')
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+  const [selectedTokenSymbol, setSelectedTokenSymbol] = useState<"BC" | "SOL" | "USDC">("BC")
+  const [isStakingOnchain, setIsStakingOnchain] = useState(false)
+
+  const { ensureOnchainWallet, wallets, solanaWallets } = useEnsureOnchainWallet()
+  const { toast } = useToast()
 
   const { user, isAuthenticated } = useAuth()
   const viewerWallet = typeof (user as any)?.walletAddress === 'string' ? (user as any).walletAddress : null
@@ -88,14 +97,31 @@ export default function KingOfTheHillPage() {
     queryFn: () => apiRequest('GET', '/api/bantahbro/profile'),
     enabled: isAuthenticated,
   })
+
+  const { data: onchainConfig } = useQuery<OnchainRuntimeConfig>({
+    queryKey: ["/api/onchain/config"],
+    queryFn: async () => await apiRequest("GET", "/api/onchain/config"),
+    retry: false,
+  });
+
   const joinKothMutation = useMutation({
-    mutationFn: async (agentId: string) => apiRequest('POST', `/api/bantahbro/koth/agents/${encodeURIComponent(agentId)}/join`, { stakeAmount: Number(stakeAmount) }),
+    mutationFn: async ({ agentId, tokenSymbol, escrowTxHash, chainId, walletAddress }: { agentId: string, tokenSymbol: string, escrowTxHash?: string, chainId?: number, walletAddress?: string }) => 
+      apiRequest('POST', `/api/bantahbro/koth/agents/${encodeURIComponent(agentId)}/join`, { 
+        stakeAmount: Number(stakeAmount),
+        tokenSymbol,
+        escrowTxHash,
+        chainId,
+        walletAddress
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/koth/participants'] })
       setJoinStatus('success')
+      setIsStakingOnchain(false)
     },
-    onError: () => {
+    onError: (err: any) => {
+      console.error(err);
       setJoinStatus('fail')
+      setIsStakingOnchain(false)
     }
   })
 
@@ -130,10 +156,46 @@ export default function KingOfTheHillPage() {
     setJoinStatus('loadout')
   }
 
-  const handleConfirmStake = () => {
+  const handleConfirmStake = async () => {
     if (!selectedAgentId) return
     setJoinStatus('joining')
-    joinKothMutation.mutate(selectedAgentId)
+    
+    if (selectedTokenSymbol === "BC") {
+      joinKothMutation.mutate({ agentId: selectedAgentId, tokenSymbol: "BC" })
+    } else {
+      try {
+        setIsStakingOnchain(true);
+        if (!onchainConfig) throw new Error("Onchain config unavailable");
+
+        const { walletAddress } = await ensureOnchainWallet("stake into Arena");
+        
+        const solanaChainId = Object.values(onchainConfig.chains || {}).find(c => String(c.key).startsWith('solana'))?.chainId;
+        if (!solanaChainId) throw new Error("Solana not configured in environment");
+
+        const escrowTx = await executeOnchainEscrowStakeTx({
+          wallets: wallets as any,
+          solanaWallets: solanaWallets as any,
+          preferredWalletAddress: walletAddress,
+          onchainConfig,
+          chainId: Number(solanaChainId),
+          tokenSymbol: selectedTokenSymbol as OnchainTokenSymbol,
+          amount: String(stakeAmount),
+        });
+
+        joinKothMutation.mutate({ 
+          agentId: selectedAgentId, 
+          tokenSymbol: selectedTokenSymbol,
+          escrowTxHash: escrowTx.escrowTxHash,
+          chainId: Number(solanaChainId),
+          walletAddress: escrowTx.walletAddress
+        });
+      } catch (e: any) {
+        console.error(e);
+        toast({ title: "Staking Failed", description: e.message || "Failed to secure stake", variant: "destructive" });
+        setJoinStatus('fail');
+        setIsStakingOnchain(false);
+      }
+    }
   }
 
   const equippedPrimary = tools.find(t => t.equippedToFighterId === selectedAgentId && t.equippedSlot === 'primary')
@@ -322,16 +384,27 @@ export default function KingOfTheHillPage() {
                    </div>
 
                    <div className="flex flex-col gap-1.5">
-                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Stake Amount (BC)</label>
-                     <div className="flex items-center bg-black/40 border border-indigo-500/30 rounded px-2 py-1.5 focus-within:border-indigo-400 transition-colors">
-                       <Coins size={14} className="text-amber-400 mr-1.5" />
-                       <input 
-                         type="number" 
-                         placeholder="1000" 
-                         value={stakeAmount}
-                         onChange={(e) => setStakeAmount(e.target.value)}
-                         className="bg-transparent border-none outline-none text-white font-black text-sm w-full placeholder:text-white/20"
-                       />
+                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Stake Amount</label>
+                     <div className="flex items-center gap-2">
+                       <div className="flex-1 flex items-center bg-black/40 border border-indigo-500/30 rounded px-2 py-1.5 focus-within:border-indigo-400 transition-colors">
+                         <Coins size={14} className="text-amber-400 mr-1.5" />
+                         <input 
+                           type="number" 
+                           placeholder="1000" 
+                           value={stakeAmount}
+                           onChange={(e) => setStakeAmount(e.target.value)}
+                           className="bg-transparent border-none outline-none text-white font-black text-sm w-full placeholder:text-white/20"
+                         />
+                       </div>
+                       <select 
+                         value={selectedTokenSymbol} 
+                         onChange={(e) => setSelectedTokenSymbol(e.target.value as any)}
+                         className="bg-[#1a142c] border border-indigo-500/50 text-white text-xs font-black p-2 rounded outline-none h-[34px]"
+                       >
+                         <option value="BC">BC</option>
+                         <option value="SOL">SOL</option>
+                         <option value="USDC">USDC</option>
+                       </select>
                      </div>
                    </div>
 
@@ -439,9 +512,17 @@ export default function KingOfTheHillPage() {
             )}
 
             {joinStatus === 'joining' && (
-              <div className="p-8 flex flex-col items-center justify-center gap-3">
-                <Loader2 size={32} className="text-indigo-400 animate-spin" />
-                <span className="font-black text-indigo-300 uppercase tracking-widest text-xs animate-pulse">Joining...</span>
+              <div className="p-6 flex flex-col items-center justify-center gap-4 text-center">
+                <div className="w-12 h-12 rounded-full border-[3px] border-indigo-500/30 border-t-indigo-500 animate-spin flex items-center justify-center">
+                   <div className="w-8 h-8 rounded-full border-2 border-amber-500/30 border-b-amber-500 animate-spin shadow-[0_0_15px_#6366f1]"></div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-black text-white uppercase tracking-wider text-sm">Deploying Agent</span>
+                  <span className="font-bold text-slate-400 text-[10px] uppercase">
+                    {isStakingOnchain ? "Securing Onchain Stake..." : "Connecting to Arena servers..."}
+                  </span>
+                </div>
+                {isStakingOnchain && <PlayfulLoading overlay={false} />}
               </div>
             )}
 

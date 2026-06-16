@@ -536,7 +536,7 @@ export async function publishOnchainSimBattleRewardsForRecord(params: {
   }
 
   const config = getOnchainServerConfig();
-  const contractsConfigured = Boolean(
+  const contractsConfigured = chain.key.startsWith("solana") || Boolean(
     normalizeEvmAddress(chain.simBattleRegistryAddress) &&
       normalizeEvmAddress(chain.bantCreditRewardsAddress),
   );
@@ -559,7 +559,7 @@ export async function publishOnchainSimBattleRewardsForRecord(params: {
         dryRun,
       })
     : null;
-  const rewardResult = normalizeEvmAddress(chain.bantCreditRewardsAddress)
+  const rewardResult = (chain.key.startsWith("solana") || normalizeEvmAddress(chain.bantCreditRewardsAddress))
     ? await setBantCreditRewardBatchOnchain({
         chain,
         batchId: built.payload.battleId,

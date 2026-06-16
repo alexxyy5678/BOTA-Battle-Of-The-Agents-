@@ -1757,6 +1757,8 @@ export const kothParticipants = pgTable("koth_participants", {
   autoJoin: boolean("auto_join").notNull().default(false),
   status: varchar("status", { length: 24 }).$type<"idle" | "queued" | "live">().notNull().default("idle"),
   stakedAmount: integer("staked_amount").default(0),
+  tokenSymbol: varchar("token_symbol", { length: 20 }).default("BC"),
+  escrowTxHash: varchar("escrow_tx_hash"),
   joinedAt: timestamp("joined_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

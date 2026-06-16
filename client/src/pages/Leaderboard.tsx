@@ -349,6 +349,12 @@ export default function Leaderboard() {
             )}
             <Badge
               variant="secondary"
+              className="border-0 bg-blue-100 px-2 py-0.5 text-[10px] text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+            >
+              {entry.battlesCount || 0} Battles
+            </Badge>
+            <Badge
+              variant="secondary"
               className="border-0 bg-green-100 px-2 py-0.5 text-[10px] text-green-700 dark:bg-green-900 dark:text-green-300"
             >
               {entry.winCount || 0}W

@@ -54,6 +54,7 @@ import { uploadImage } from "@/lib/uploadImage";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useEnsureOnchainWallet } from "@/hooks/useEnsureOnchainWallet";
+import { useNetworkState } from "@/stores/useNetworkState";
 import { UserAvatar } from "@/components/UserAvatar";
 import { PlayfulLoadingOverlay } from "@/components/ui/playful-loading";
 import DateTimePicker from "react-datetime-picker";
@@ -175,9 +176,10 @@ function TokenMark({ token }: { token: OnchainTokenSymbol }) {
 
 export default function Challenges() {
   const { user, isAuthenticated, isLoading: authLoading, login, getAccessToken } = useAuth();
-  const { ensureOnchainWallet, wallets } = useEnsureOnchainWallet();
+  const { ensureOnchainWallet, wallets, solanaWallets } = useEnsureOnchainWallet();
   const [location] = useLocation();
   const { toast } = useToast();
+  const { activeNetwork } = useNetworkState();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportAgentDialogOpen, setIsImportAgentDialogOpen] = useState(false);
@@ -186,6 +188,7 @@ export default function Challenges() {
   const [agentImportMode, setAgentImportMode] = useState<AgentImportMode>("eliza");
   const [agentDisplayName, setAgentDisplayName] = useState("");
   const [agentSpecialty, setAgentSpecialty] = useState<BantahAgentSpecialty>("general");
+  const [agentChainId, setAgentChainId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
   const [showChat, setShowChat] = useState(false);
@@ -656,6 +659,13 @@ export default function Challenges() {
     return chains.sort((a, b) => Number(a.chainId) - Number(b.chainId));
   }, [onchainConfig]);
 
+  const solanaChains = useMemo(() => {
+    return chainOptions.filter(chain => {
+      const netId = getBantahAgentKitNetworkIdForChainId(Number(chain.chainId));
+      return netId?.includes("solana") || chain.name?.toLowerCase().includes("solana");
+    });
+  }, [chainOptions]);
+
   const selectedChainId =
     form.watch("chainId") ??
     headerChainId ??
@@ -1048,7 +1058,7 @@ export default function Challenges() {
       return apiRequest("POST", "/api/agents/create", {
         agentName: agentDisplayName.trim(),
         specialty: agentSpecialty,
-        chainId: selectedChainId,
+        chainId: agentChainId || (solanaChains[0] ? Number(solanaChains[0].chainId) : selectedChainId),
         avatarUrl,
       });
     },
@@ -1290,8 +1300,25 @@ export default function Challenges() {
       challengeStatusTab === 'finished' ? isFinishedChallenge :
       true;
 
-    return matchesSearch && matchesCategory && matchesStatus;
-  }), [challenges, searchTerm, selectedCategory, challengeStatusTab]);
+    // Filter by active network
+    const chainId = Number(challenge.chainId);
+    let matchesNetwork = true;
+    if (Number.isFinite(chainId)) {
+      const netId = getBantahAgentKitNetworkIdForChainId(chainId);
+      const isSolana = netId?.includes("solana");
+      if (activeNetwork === 'solana') {
+        matchesNetwork = !!isSolana;
+      } else {
+        matchesNetwork = !isSolana;
+      }
+    } else {
+      if (activeNetwork === 'solana') {
+        matchesNetwork = false;
+      }
+    }
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesNetwork;
+  }), [challenges, searchTerm, selectedCategory, challengeStatusTab, activeNetwork]);
 
   const allTabCount = useMemo(
     () =>
@@ -1310,9 +1337,25 @@ export default function Challenges() {
         const matchesCategory =
           selectedCategory === "all" || challenge.category === selectedCategory;
 
-        return matchesSearch && matchesCategory;
+        const chainId = Number(challenge.chainId);
+        let matchesNetwork = true;
+        if (Number.isFinite(chainId)) {
+          const netId = getBantahAgentKitNetworkIdForChainId(chainId);
+          const isSolana = netId?.includes("solana");
+          if (activeNetwork === 'solana') {
+            matchesNetwork = !!isSolana;
+          } else {
+            matchesNetwork = !isSolana;
+          }
+        } else {
+          if (activeNetwork === 'solana') {
+            matchesNetwork = false;
+          }
+        }
+
+        return matchesSearch && matchesCategory && matchesNetwork;
       }).length,
-    [challenges, searchTerm, selectedCategory],
+    [challenges, searchTerm, selectedCategory, activeNetwork],
   );
 
   const agentTabCount = useMemo(
@@ -1333,9 +1376,25 @@ export default function Challenges() {
         const matchesCategory =
           selectedCategory === "all" || challenge.category === selectedCategory;
 
-        return matchesSearch && matchesCategory;
+        const chainId = Number(challenge.chainId);
+        let matchesNetwork = true;
+        if (Number.isFinite(chainId)) {
+          const netId = getBantahAgentKitNetworkIdForChainId(chainId);
+          const isSolana = netId?.includes("solana");
+          if (activeNetwork === 'solana') {
+            matchesNetwork = !!isSolana;
+          } else {
+            matchesNetwork = !isSolana;
+          }
+        } else {
+          if (activeNetwork === 'solana') {
+            matchesNetwork = false;
+          }
+        }
+
+        return matchesSearch && matchesCategory && matchesNetwork;
       }).length,
-    [challenges, searchTerm, selectedCategory],
+    [challenges, searchTerm, selectedCategory, activeNetwork],
   );
 
   const filteredUsers = (allUsers as any[]).filter((u: any) => {
@@ -1479,6 +1538,7 @@ export default function Challenges() {
 
         const escrowTx = await executeOnchainEscrowStakeTx({
           wallets: wallets as any,
+          solanaWallets: solanaWallets as any,
           preferredWalletAddress: walletAddress,
           onchainConfig,
           chainId: selectedChainId,
@@ -1505,6 +1565,7 @@ export default function Challenges() {
 
         const escrowTx = await executeOnchainEscrowStakeTx({
           wallets: wallets as any,
+          solanaWallets: solanaWallets as any,
           preferredWalletAddress: walletAddress,
           onchainConfig,
           chainId: selectedChainId,
@@ -1642,6 +1703,7 @@ export default function Challenges() {
 
         const escrowTx = await executeOnchainEscrowStakeTx({
           wallets: wallets as any,
+          solanaWallets: solanaWallets as any,
           preferredWalletAddress: walletAddress,
           onchainConfig,
           chainId: Number(
@@ -2192,6 +2254,35 @@ export default function Challenges() {
                               </SelectContent>
                           </Select>
                         </div>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <label
+                          htmlFor="agent-chain"
+                          className="text-[10px] font-semibold tracking-normal text-slate-600 dark:text-slate-400"
+                        >
+                          Network
+                        </label>
+                        <Select
+                          value={String(agentChainId || solanaChains[0]?.chainId || "")}
+                          onValueChange={(value) => setAgentChainId(Number(value))}
+                        >
+                          <SelectTrigger
+                            id="agent-chain"
+                            className="h-9 rounded-xl border-0 bg-slate-50/90 text-sm shadow-none focus:ring-0 focus:ring-offset-0 dark:border-0 dark:bg-slate-800/80 dark:focus:ring-0 dark:focus:ring-offset-0"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              {solanaChains.find(c => Number(c.chainId) === (agentChainId || Number(solanaChains[0]?.chainId)))?.name || "Solana"}
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-0 bg-white shadow-lg dark:bg-slate-800">
+                            {solanaChains.map((chain) => (
+                              <SelectItem key={chain.chainId} value={String(chain.chainId)}>
+                                {chain.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="space-y-1">

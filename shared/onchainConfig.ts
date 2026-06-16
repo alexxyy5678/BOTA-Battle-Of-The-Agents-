@@ -9,7 +9,9 @@ export type OnchainChainKey =
   | "bsc-testnet"
   | "arbitrum-sepolia"
   | "celo-sepolia"
-  | "unichain-sepolia";
+  | "unichain-sepolia"
+  | "solana-mainnet"
+  | "solana-devnet";
 export type OnchainExecutionMode = "metadata_only" | "contract";
 
 export interface OnchainTokenConfig {
@@ -224,6 +226,36 @@ export const DEFAULT_ONCHAIN_TESTNET_CHAINS: Record<OnchainChainKey, OnchainChai
     tokens: DEFAULT_ONCHAIN_ETH_NATIVE_TOKENS,
     supportedTokens: ETH_TESTNET_SUPPORTED_TOKENS,
   },
+  "solana-mainnet": {
+    key: "solana-mainnet",
+    chainId: 1399811149,
+    name: "Solana Mainnet",
+    nativeSymbol: "SOL",
+    rpcUrl: "https://api.mainnet-beta.solana.com",
+    blockExplorerUrl: "https://solscan.io",
+    tokens: {
+      USDC: { symbol: "USDC", decimals: 6, address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", isNative: false },
+      USDT: { symbol: "USDT", decimals: 6, address: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", isNative: false },
+      ETH: { symbol: "ETH", decimals: 9, address: null, isNative: false },
+      BNB: { symbol: "BNB", decimals: 9, address: null, isNative: false }
+    },
+    supportedTokens: ["USDC", "USDT"],
+  },
+  "solana-devnet": {
+    key: "solana-devnet",
+    chainId: 900001,
+    name: "Solana Devnet",
+    nativeSymbol: "SOL",
+    rpcUrl: "https://api.devnet.solana.com",
+    blockExplorerUrl: "https://solscan.io/?cluster=devnet",
+    tokens: {
+      USDC: { symbol: "USDC", decimals: 6, address: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", isNative: false },
+      USDT: { symbol: "USDT", decimals: 6, address: null, isNative: false },
+      ETH: { symbol: "ETH", decimals: 9, address: null, isNative: false },
+      BNB: { symbol: "BNB", decimals: 9, address: null, isNative: false }
+    },
+    supportedTokens: ["USDC"],
+  },
 };
 
 export function normalizeOnchainTokenSymbol(input: unknown): OnchainTokenSymbol {
@@ -237,14 +269,24 @@ export function normalizeOnchainTokenSymbol(input: unknown): OnchainTokenSymbol 
 export function normalizeEvmAddress(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const value = input.trim();
-  if (!/^0x[a-fA-F0-9]{40}$/.test(value)) return null;
-  return value.toLowerCase();
+  if (/^0x[a-fA-F0-9]{40}$/.test(value)) return value.toLowerCase();
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)) return value;
+  return null;
+}
+
+export function normalizeOnchainAddress(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const value = input.trim();
+  if (/^0x[a-fA-F0-9]{40}$/.test(value)) return value.toLowerCase();
+  // Basic base58 regex for Solana
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)) return value;
+  return null;
 }
 
 export function parseWalletAddresses(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   const normalized = input
-    .map((entry) => normalizeEvmAddress(entry))
+    .map((entry) => normalizeOnchainAddress(entry))
     .filter((entry): entry is string => !!entry);
   return Array.from(new Set(normalized));
 }

@@ -21,6 +21,7 @@ import { AgentImportDialog, type AgentImportMode } from "@/components/AgentImpor
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { MobileNavigation } from "@/components/MobileNavigation";
+import { useNetworkState } from "@/stores/useNetworkState";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -244,8 +245,22 @@ export default function Agents() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const agents = data?.items ?? [];
-  const topAgents = leaderboard?.items ?? [];
+  const { activeNetwork } = useNetworkState();
+
+  const isSolanaAgent = (agent: AgentRegistryProfile) => {
+    return agent.walletNetworkId?.toLowerCase().includes("solana") || (agent.walletAddress?.length > 42 && !agent.walletAddress?.startsWith("0x"));
+  };
+
+  const agents = useMemo(() => {
+    const items = data?.items ?? [];
+    return items.filter(agent => activeNetwork === 'solana' ? isSolanaAgent(agent) : !isSolanaAgent(agent));
+  }, [data?.items, activeNetwork]);
+
+  const topAgents = useMemo(() => {
+    const items = leaderboard?.items ?? [];
+    return items.filter(agent => activeNetwork === 'solana' ? isSolanaAgent(agent) : !isSolanaAgent(agent));
+  }, [leaderboard?.items, activeNetwork]);
+
   const featuredAgent = topAgents[0] ?? null;
   const newestAgent = useMemo(() => {
     if (agents.length === 0) return null;

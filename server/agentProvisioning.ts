@@ -1,4 +1,7 @@
 import { encodeFunctionData, formatUnits, parseAbi, parseUnits, type Address, type Hex } from "viem";
+import { Keypair, Connection, PublicKey, SystemProgram, Transaction, VersionedTransaction } from "@solana/web3.js";
+import bs58 from "bs58";
+import { SolanaAgentKit } from "solana-agent-kit";
 import { BANTAH_SKILL_VERSION, bantahRequiredSkillActionValues } from "@shared/agentSkill";
 import type { OnchainChainConfig, OnchainTokenSymbol } from "@shared/onchainConfig";
 import { getBantahAgentKitNetworkIdForChainId } from "@shared/agentApi";
@@ -53,14 +56,15 @@ type AgentKitLikeModule = {
 };
 
 export type ProvisionedBantahAgent = {
-  walletAddress: `0x${string}`;
-  ownerWalletAddress: `0x${string}`;
-  walletProvider: "cdp_smart_wallet";
+  walletAddress: `0x${string}` | string;
+  ownerWalletAddress: `0x${string}` | string;
+  walletProvider: "cdp_smart_wallet" | "solana_agent_kit";
   walletNetworkId: string;
   walletData: {
     name?: string;
-    address: `0x${string}`;
-    ownerAddress: `0x${string}`;
+    address: string;
+    ownerAddress: string;
+    secretKeyBase58?: string;
   };
 };
 
@@ -83,17 +87,20 @@ export class BantahAgentWalletError extends Error {
 }
 
 type RestoredBantahAgentWallet = {
-  walletProvider: Awaited<ReturnType<AgentKitLikeModule["CdpSmartWalletProvider"]["configureWithWallet"]>>;
-  walletAddress: `0x${string}`;
-  ownerWalletAddress: `0x${string}`;
+  walletProvider?: Awaited<ReturnType<AgentKitLikeModule["CdpSmartWalletProvider"]["configureWithWallet"]>>;
+  solanaAgentKit?: SolanaAgentKit;
+  walletProviderType: "cdp_smart_wallet" | "solana_agent_kit";
+  walletAddress: `0x${string}` | string;
+  ownerWalletAddress: `0x${string}` | string;
   walletNetworkId: string;
 };
 
-function normalizeAddress(input: unknown): `0x${string}` | null {
+function normalizeAddress(input: unknown): `0x${string}` | string | null {
   if (typeof input !== "string") return null;
-  const value = input.trim().toLowerCase();
-  if (!/^0x[a-f0-9]{40}$/.test(value)) return null;
-  return value as `0x${string}`;
+  const value = input.trim();
+  if (/^0x[a-f0-9A-F]{40}$/.test(value)) return value.toLowerCase() as `0x${string}`;
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)) return value;
+  return null;
 }
 
 function normalizeHash(input: unknown): `0x${string}` | null {
@@ -267,6 +274,10 @@ export function getBantahAgentEndpointBaseUrl() {
   );
 }
 
+function getSolanaRpcUrl() {
+  return String(process.env.SOLANA_RPC_URL || "").trim() || "https://api.mainnet-beta.solana.com";
+}
+
 export function buildBantahAgentEndpointUrl(agentId: string) {
   return new URL(`/api/agents/runtime/${agentId}`, getBantahAgentEndpointBaseUrl()).toString();
 }
@@ -275,6 +286,23 @@ export async function provisionBantahAgentWallet(
   agentId: string,
   networkId = DEFAULT_BANTAH_AGENT_NETWORK_ID,
 ): Promise<ProvisionedBantahAgent> {
+  if (networkId.includes("solana")) {
+    const keypair = Keypair.generate();
+    const address = keypair.publicKey.toBase58();
+    const secretKeyBase58 = bs58.encode(keypair.secretKey);
+    return {
+      walletAddress: address,
+      ownerWalletAddress: address,
+      walletProvider: "solana_agent_kit",
+      walletNetworkId: networkId,
+      walletData: {
+        address,
+        ownerAddress: address,
+        secretKeyBase58,
+      },
+    };
+  }
+
   const { CdpSmartWalletProvider } = await loadAgentKit();
   try {
     const walletProvider = await CdpSmartWalletProvider.configureWithWallet({
@@ -315,7 +343,7 @@ export async function restoreBantahAgentWallet(
     targetChainId?: number;
   } = {},
 ): Promise<RestoredBantahAgentWallet> {
-  if (snapshot.walletProvider && snapshot.walletProvider !== "cdp_smart_wallet") {
+  if (snapshot.walletProvider && snapshot.walletProvider !== "cdp_smart_wallet" && snapshot.walletProvider !== "solana_agent_kit") {
     const walletProvider = String(snapshot.walletProvider || "").trim();
     throw new BantahAgentWalletError(
       "wallet_not_provisioned",
@@ -337,6 +365,29 @@ export async function restoreBantahAgentWallet(
     snapshot,
     targetChainId: options.targetChainId,
   });
+
+  if (snapshot.walletProvider === "solana_agent_kit") {
+    const walletData = snapshot.walletData as { secretKeyBase58?: string };
+    if (!walletData?.secretKeyBase58) {
+       throw new BantahAgentWalletError(
+        "wallet_restore_failed",
+        "Bantah agent solana wallet data is missing secret key.",
+      );
+    }
+    const solanaAgentKit = new SolanaAgentKit(
+      walletData.secretKeyBase58,
+      getSolanaRpcUrl(),
+      String(process.env.OPENAI_API_KEY || "")
+    );
+    return {
+      solanaAgentKit,
+      walletProviderType: "solana_agent_kit",
+      walletAddress,
+      ownerWalletAddress,
+      walletNetworkId,
+    };
+  }
+
   const { CdpSmartWalletProvider } = await loadAgentKit();
 
   try {
@@ -352,6 +403,7 @@ export async function restoreBantahAgentWallet(
 
     return {
       walletProvider,
+      walletProviderType: "cdp_smart_wallet",
       walletAddress,
       ownerWalletAddress,
       walletNetworkId,
@@ -388,9 +440,36 @@ export async function getBantahAgentWalletBalance(params: {
   }
 
   let amountAtomic: bigint;
-  if (tokenConfig.isNative) {
-    amountAtomic = await restoredWallet.walletProvider.getBalance();
-  } else {
+  if (restoredWallet.walletProviderType === "solana_agent_kit" && restoredWallet.solanaAgentKit) {
+    if (tokenConfig.isNative) {
+      // getBalance returns SOL in lamports as number, but let's just get it directly or via sdk
+      const balanceNum = await restoredWallet.solanaAgentKit.connection.getBalance(restoredWallet.solanaAgentKit.wallet.publicKey);
+      amountAtomic = BigInt(balanceNum);
+    } else {
+      const tokenAddress = normalizeAddress(tokenConfig.address);
+      if (!tokenAddress) {
+        throw new BantahAgentWalletError(
+          "unsupported_chain",
+          `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+        );
+      }
+      try {
+        const tokenPubkey = new PublicKey(tokenAddress);
+        const accounts = await restoredWallet.solanaAgentKit.connection.getTokenAccountsByOwner(restoredWallet.solanaAgentKit.wallet.publicKey, { mint: tokenPubkey });
+        if (accounts.value.length > 0) {
+          const balInfo = await restoredWallet.solanaAgentKit.connection.getTokenAccountBalance(accounts.value[0].pubkey);
+          amountAtomic = BigInt(balInfo.value.amount);
+        } else {
+          amountAtomic = 0n;
+        }
+      } catch (err) {
+        amountAtomic = 0n;
+      }
+    }
+  } else if (restoredWallet.walletProvider) {
+    if (tokenConfig.isNative) {
+      amountAtomic = await restoredWallet.walletProvider.getBalance();
+    } else {
     const tokenAddress = normalizeAddress(tokenConfig.address);
     if (!tokenAddress) {
       throw new BantahAgentWalletError(
@@ -399,13 +478,16 @@ export async function getBantahAgentWalletBalance(params: {
       );
     }
 
-    const balanceResult = await restoredWallet.walletProvider.readContract({
-      address: tokenAddress,
-      abi: erc20BalanceAbi,
-      functionName: "balanceOf",
-      args: [restoredWallet.walletAddress],
-    });
-    amountAtomic = BigInt(String(balanceResult || "0"));
+      const balanceResult = await restoredWallet.walletProvider.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20BalanceAbi,
+        functionName: "balanceOf",
+        args: [restoredWallet.walletAddress as `0x${string}`],
+      });
+      amountAtomic = BigInt(String(balanceResult || "0"));
+    }
+  } else {
+    amountAtomic = 0n;
   }
 
   return {
@@ -460,23 +542,50 @@ export async function executeBantahAgentEscrowStakeTx(params: {
   }
 
   let availableAmountAtomic: bigint;
-  if (tokenConfig.isNative) {
-    availableAmountAtomic = await restoredWallet.walletProvider.getBalance();
-  } else {
-    const tokenAddress = normalizeAddress(tokenConfig.address);
-    if (!tokenAddress) {
-      throw new BantahAgentWalletError(
-        "unsupported_chain",
-        `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
-      );
+  if (restoredWallet.walletProviderType === "solana_agent_kit" && restoredWallet.solanaAgentKit) {
+    if (tokenConfig.isNative) {
+      availableAmountAtomic = BigInt(await restoredWallet.solanaAgentKit.connection.getBalance(restoredWallet.solanaAgentKit.wallet.publicKey));
+    } else {
+      const tokenAddress = normalizeAddress(tokenConfig.address);
+      if (!tokenAddress) {
+        throw new BantahAgentWalletError(
+          "unsupported_chain",
+          `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+        );
+      }
+      try {
+        const accounts = await restoredWallet.solanaAgentKit.connection.getTokenAccountsByOwner(restoredWallet.solanaAgentKit.wallet.publicKey, { mint: new PublicKey(tokenAddress) });
+        if (accounts.value.length > 0) {
+          const balInfo = await restoredWallet.solanaAgentKit.connection.getTokenAccountBalance(accounts.value[0].pubkey);
+          availableAmountAtomic = BigInt(balInfo.value.amount);
+        } else {
+          availableAmountAtomic = 0n;
+        }
+      } catch (err) {
+        availableAmountAtomic = 0n;
+      }
     }
-    const balanceResult = await restoredWallet.walletProvider.readContract({
-      address: tokenAddress,
-      abi: erc20BalanceAbi,
-      functionName: "balanceOf",
-      args: [restoredWallet.walletAddress],
-    });
-    availableAmountAtomic = BigInt(String(balanceResult || "0"));
+  } else if (restoredWallet.walletProvider) {
+    if (tokenConfig.isNative) {
+      availableAmountAtomic = await restoredWallet.walletProvider.getBalance();
+    } else {
+      const tokenAddress = normalizeAddress(tokenConfig.address);
+      if (!tokenAddress) {
+        throw new BantahAgentWalletError(
+          "unsupported_chain",
+          `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+        );
+      }
+      const balanceResult = await restoredWallet.walletProvider.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20BalanceAbi,
+        functionName: "balanceOf",
+        args: [restoredWallet.walletAddress as `0x${string}`],
+      });
+      availableAmountAtomic = BigInt(String(balanceResult || "0"));
+    }
+  } else {
+    availableAmountAtomic = 0n;
   }
 
   if (availableAmountAtomic < rawAmountAtomic) {
@@ -488,6 +597,54 @@ export async function executeBantahAgentEscrowStakeTx(params: {
     );
   }
 
+  if (restoredWallet.walletProviderType === "solana_agent_kit" && restoredWallet.solanaAgentKit) {
+    if (tokenConfig.isNative) {
+      const tx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: restoredWallet.solanaAgentKit.wallet.publicKey,
+          toPubkey: new PublicKey(escrowAddress),
+          lamports: Number(rawAmountAtomic),
+        })
+      );
+      const { signature } = await restoredWallet.solanaAgentKit.wallet.signAndSendTransaction(tx);
+      return {
+        walletAddress: restoredWallet.walletAddress,
+        walletNetworkId: restoredWallet.walletNetworkId,
+        escrowTxHash: signature as `0x${string}`,
+      };
+    } else {
+      const tokenAddress = normalizeAddress(tokenConfig.address);
+      if (!tokenAddress) {
+        throw new BantahAgentWalletError(
+          "unsupported_chain",
+          `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+        );
+      }
+      
+      try {
+        const signature = await restoredWallet.solanaAgentKit.transfer(
+          new PublicKey(escrowAddress),
+          Number(rawAmountAtomic) / (10 ** tokenConfig.decimals),
+          new PublicKey(tokenAddress)
+        );
+        return {
+          walletAddress: restoredWallet.walletAddress,
+          walletNetworkId: restoredWallet.walletNetworkId,
+          escrowTxHash: signature as `0x${string}`,
+        };
+      } catch (error: any) {
+        throw new BantahAgentWalletError(
+          "transaction_failed",
+          `SPL Token staking failed: ${error?.message || "Unknown error"}`
+        );
+      }
+    }
+  }
+
+  if (!restoredWallet.walletProvider) {
+    throw new BantahAgentWalletError("transaction_incomplete", "EVM Provider missing");
+  }
+
   if (tokenConfig.isNative) {
     const nativeStakeData = encodeFunctionData({
       abi: escrowNativeAbi,
@@ -495,7 +652,7 @@ export async function executeBantahAgentEscrowStakeTx(params: {
       args: [],
     });
     const userOpHash = await restoredWallet.walletProvider.sendTransaction({
-      to: escrowAddress,
+      to: escrowAddress as `0x${string}`,
       data: nativeStakeData,
       value: rawAmountAtomic,
     });
@@ -516,6 +673,10 @@ export async function executeBantahAgentEscrowStakeTx(params: {
     };
   }
 
+  if (!restoredWallet.walletProvider) {
+    throw new BantahAgentWalletError("transaction_incomplete", "EVM Provider missing for non-native execution");
+  }
+
   const tokenAddress = normalizeAddress(tokenConfig.address);
   if (!tokenAddress) {
     throw new BantahAgentWalletError(
@@ -527,10 +688,10 @@ export async function executeBantahAgentEscrowStakeTx(params: {
   const approveData = encodeFunctionData({
     abi: erc20ApproveAbi,
     functionName: "approve",
-    args: [escrowAddress, rawAmountAtomic],
+    args: [escrowAddress as `0x${string}`, rawAmountAtomic],
   });
   const approveUserOpHash = await restoredWallet.walletProvider.sendTransaction({
-    to: tokenAddress,
+    to: tokenAddress as `0x${string}`,
     data: approveData,
     value: 0n,
   });
@@ -548,11 +709,11 @@ export async function executeBantahAgentEscrowStakeTx(params: {
     params.chainConfig.escrowStakeMethodErc20?.trim() || "lockStakeToken(address,uint256)";
   const escrowData = buildErc20EscrowCalldata(
     erc20MethodSignature,
-    tokenAddress,
+    tokenAddress as `0x${string}`,
     rawAmountAtomic,
   );
   const escrowUserOpHash = await restoredWallet.walletProvider.sendTransaction({
-    to: escrowAddress,
+    to: escrowAddress as `0x${string}`,
     data: escrowData,
     value: 0n,
   });
@@ -616,23 +777,50 @@ export async function sendBantahAgentWalletTransfer(params: {
   }
 
   let availableAmountAtomic: bigint;
-  if (tokenConfig.isNative) {
-    availableAmountAtomic = await restoredWallet.walletProvider.getBalance();
-  } else {
-    const tokenAddress = normalizeAddress(tokenConfig.address);
-    if (!tokenAddress) {
-      throw new BantahAgentWalletError(
-        "unsupported_chain",
-        `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
-      );
+  if (restoredWallet.walletProviderType === "solana_agent_kit" && restoredWallet.solanaAgentKit) {
+    if (tokenConfig.isNative) {
+      availableAmountAtomic = BigInt(await restoredWallet.solanaAgentKit.connection.getBalance(restoredWallet.solanaAgentKit.wallet.publicKey));
+    } else {
+      const tokenAddress = normalizeAddress(tokenConfig.address);
+      if (!tokenAddress) {
+        throw new BantahAgentWalletError(
+          "unsupported_chain",
+          `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+        );
+      }
+      try {
+        const accounts = await restoredWallet.solanaAgentKit.connection.getTokenAccountsByOwner(restoredWallet.solanaAgentKit.wallet.publicKey, { mint: new PublicKey(tokenAddress) });
+        if (accounts.value.length > 0) {
+          const balInfo = await restoredWallet.solanaAgentKit.connection.getTokenAccountBalance(accounts.value[0].pubkey);
+          availableAmountAtomic = BigInt(balInfo.value.amount);
+        } else {
+          availableAmountAtomic = 0n;
+        }
+      } catch (err) {
+        availableAmountAtomic = 0n;
+      }
     }
-    const balanceResult = await restoredWallet.walletProvider.readContract({
-      address: tokenAddress,
-      abi: erc20BalanceAbi,
-      functionName: "balanceOf",
-      args: [restoredWallet.walletAddress],
-    });
-    availableAmountAtomic = BigInt(String(balanceResult || "0"));
+  } else if (restoredWallet.walletProvider) {
+    if (tokenConfig.isNative) {
+      availableAmountAtomic = await restoredWallet.walletProvider.getBalance();
+    } else {
+      const tokenAddress = normalizeAddress(tokenConfig.address);
+      if (!tokenAddress) {
+        throw new BantahAgentWalletError(
+          "unsupported_chain",
+          `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+        );
+      }
+      const balanceResult = await restoredWallet.walletProvider.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20BalanceAbi,
+        functionName: "balanceOf",
+        args: [restoredWallet.walletAddress as `0x${string}`],
+      });
+      availableAmountAtomic = BigInt(String(balanceResult || "0"));
+    }
+  } else {
+    availableAmountAtomic = 0n;
   }
 
   if (availableAmountAtomic < amountAtomic) {
@@ -644,49 +832,89 @@ export async function sendBantahAgentWalletTransfer(params: {
     );
   }
 
-  let userOpHash: Hex;
-  if (tokenConfig.isNative) {
-    userOpHash = await restoredWallet.walletProvider.sendTransaction({
-      to: recipientAddress,
-      value: amountAtomic,
-      data: "0x",
-    });
-  } else {
-    const tokenAddress = normalizeAddress(tokenConfig.address);
-    if (!tokenAddress) {
-      throw new BantahAgentWalletError(
-        "unsupported_chain",
-        `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+  let txHash: string;
+  if (restoredWallet.walletProviderType === "solana_agent_kit" && restoredWallet.solanaAgentKit) {
+    if (tokenConfig.isNative) {
+      const tx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: restoredWallet.solanaAgentKit.wallet.publicKey,
+          toPubkey: new PublicKey(recipientAddress),
+          lamports: Number(amountAtomic),
+        })
       );
+      const res = await restoredWallet.solanaAgentKit.wallet.signAndSendTransaction(tx);
+      txHash = res.signature;
+    } else {
+        const tokenAddress = normalizeAddress(tokenConfig.address);
+        if (!tokenAddress) {
+          throw new BantahAgentWalletError(
+            "unsupported_chain",
+            `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+          );
+        }
+        
+        try {
+          const res = await restoredWallet.solanaAgentKit.transfer(
+            new PublicKey(recipientAddress),
+            Number(amountAtomic) / (10 ** tokenConfig.decimals),
+            new PublicKey(tokenAddress)
+          );
+          txHash = res;
+        } catch (error: any) {
+          throw new BantahAgentWalletError(
+            "transaction_failed",
+            `SPL Token transfer failed: ${error?.message || "Unknown error"}`
+          );
+        }
+    }
+  } else if (restoredWallet.walletProvider) {
+    let userOpHash: Hex;
+    if (tokenConfig.isNative) {
+      userOpHash = await restoredWallet.walletProvider.sendTransaction({
+        to: recipientAddress as `0x${string}`,
+        value: amountAtomic,
+        data: "0x",
+      });
+    } else {
+      const tokenAddress = normalizeAddress(tokenConfig.address);
+      if (!tokenAddress) {
+        throw new BantahAgentWalletError(
+          "unsupported_chain",
+          `Token ${params.tokenSymbol} does not have a configured contract address on ${params.chainConfig.name}.`,
+        );
+      }
+
+      const transferData = encodeFunctionData({
+        abi: erc20TransferAbi,
+        functionName: "transfer",
+        args: [recipientAddress as Address, amountAtomic],
+      });
+
+      userOpHash = await restoredWallet.walletProvider.sendTransaction({
+        to: tokenAddress as `0x${string}`,
+        data: transferData,
+        value: 0n,
+      });
     }
 
-    const transferData = encodeFunctionData({
-      abi: erc20TransferAbi,
-      functionName: "transfer",
-      args: [recipientAddress as Address, amountAtomic],
-    });
-
-    userOpHash = await restoredWallet.walletProvider.sendTransaction({
-      to: tokenAddress,
-      data: transferData,
-      value: 0n,
-    });
-  }
-
-  const receipt = await restoredWallet.walletProvider.waitForTransactionReceipt(userOpHash);
-  const txHash = extractTransactionHash(receipt);
-  if (!txHash) {
-    throw new BantahAgentWalletError(
-      "transaction_incomplete",
-      "Wallet transfer completed without an onchain transaction hash.",
-    );
+    const receipt = await restoredWallet.walletProvider.waitForTransactionReceipt(userOpHash);
+    const evmTxHash = extractTransactionHash(receipt);
+    if (!evmTxHash) {
+      throw new BantahAgentWalletError(
+        "transaction_incomplete",
+        "Wallet transfer completed without an onchain transaction hash.",
+      );
+    }
+    txHash = evmTxHash;
+  } else {
+    throw new BantahAgentWalletError("transaction_incomplete", "Wallet provider missing");
   }
 
   return {
     walletAddress: restoredWallet.walletAddress,
     walletNetworkId: restoredWallet.walletNetworkId,
-    recipientAddress,
-    txHash,
+    recipientAddress: recipientAddress as `0x${string}`,
+    txHash: txHash as `0x${string}`,
   };
 }
 

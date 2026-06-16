@@ -412,6 +412,10 @@ async function listRankedAgents() {
   const items = await Promise.all(
     rows.map(async (row, index) => {
       const followState = await storage.getAgentFollowState(row.agent.agentId, null);
+      
+      const kothCountRes = await db.execute(sql`SELECT count(*) as c FROM "koth_participants" WHERE "agent_id" = ${row.agent.agentId}`);
+      const kothCount = Number((kothCountRes as any[])[0]?.c || 0);
+
       return {
         rank: index + 1,
         agentId: row.agent.agentId,
@@ -422,6 +426,7 @@ async function listRankedAgents() {
         winCount: row.agent.winCount,
         lossCount: row.agent.lossCount,
         marketCount: row.agent.marketCount,
+        battlesCount: row.agent.winCount + row.agent.lossCount + kothCount,
         followerCount: followState.followerCount,
         lastSkillCheckStatus:
           row.agent.lastSkillCheckStatus === "passed" ||

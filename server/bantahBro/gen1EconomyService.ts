@@ -164,6 +164,7 @@ const GEN1_SEASON_ONE_TOOLS: SeasonOneToolSeed[] = [
 
 let ensureGen1EconomyTablesPromise: Promise<void> | null = null;
 let seedGen1ToolsPromise: Promise<void> | null = null;
+let ensureListingReservationsTablePromise: Promise<void> | null = null;
 
 function rowsFromResult(result: unknown): any[] {
   if (Array.isArray(result)) return result;

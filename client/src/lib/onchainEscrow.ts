@@ -1,5 +1,6 @@
 import { encodeFunctionData, parseAbi, parseUnits, toHex } from "viem";
 import { Attribution } from "ox/erc8021";
+import { isSolanaAddress } from "./utils";
 
 export type OnchainTokenSymbol = "USDC" | "USDT" | "ETH" | "BNB";
 
@@ -79,11 +80,13 @@ const BASE_BUILDER_DATA_SUFFIX = (() => {
   }
 })();
 
-function normalizeAddress(input: unknown): `0x${string}` | null {
+function normalizeAddress(input: unknown): string | null {
   if (typeof input !== "string") return null;
-  const value = input.trim().toLowerCase();
-  if (!/^0x[a-f0-9]{40}$/.test(value)) return null;
-  return value as `0x${string}`;
+  const value = input.trim();
+  if (isSolanaAddress(value)) return value;
+  const lowerValue = value.toLowerCase();
+  if (!/^0x[a-f0-9]{40}$/.test(lowerValue)) return null;
+  return lowerValue as `0x${string}`;
 }
 
 function normalizeHash(input: unknown): `0x${string}` {
@@ -300,6 +303,7 @@ function toAtomicAmount(rawAmount: string | number, decimals: number): bigint {
 
 export async function executeOnchainEscrowStakeTx(params: {
   wallets: PrivyWallet[];
+  solanaWallets?: any[];
   preferredWalletAddress?: string | null;
   onchainConfig: OnchainRuntimeConfig;
   chainId: number;
@@ -324,9 +328,61 @@ export async function executeOnchainEscrowStakeTx(params: {
     );
   }
 
+  const isSolana = chainConfig.name.toLowerCase().includes("solana");
+
   const token = chainConfig.tokens?.[params.tokenSymbol];
   if (!token) {
     throw new Error(`Token ${params.tokenSymbol} is not configured on ${chainConfig.name}.`);
+  }
+
+  const amountAtomicRaw = typeof params.amountAtomic === "string" ? params.amountAtomic.trim() : "";
+  const amountAtomic = /^\d+$/.test(amountAtomicRaw)
+    ? BigInt(amountAtomicRaw)
+    : toAtomicAmount(params.amount, token.decimals);
+  if (amountAtomic <= BigInt(0)) {
+    throw new Error("Stake amount must be greater than zero.");
+  }
+
+  if (isSolana) {
+    if (!params.solanaWallets || params.solanaWallets.length === 0) {
+      throw new Error("No Solana wallet connected.");
+    }
+    const solWallet = params.solanaWallets.find((w: any) => normalizeAddress(w.address) === normalizeAddress(params.preferredWalletAddress)) || params.solanaWallets[0];
+    
+    const { Connection, PublicKey, SystemProgram, Transaction } = await import("@solana/web3.js");
+    const { createTransferInstruction, getAssociatedTokenAddress } = await import("@solana/spl-token");
+
+    const senderPubkey = new PublicKey(solWallet.address);
+    const treasuryPubkey = new PublicKey(escrowAddress);
+    const connection = new Connection(chainConfig.rpcUrl, 'confirmed');
+
+    const transaction = new Transaction();
+
+    if (token.isNative || !token.address) {
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: senderPubkey,
+          toPubkey: treasuryPubkey,
+          lamports: Number(amountAtomic),
+        })
+      );
+    } else {
+      const mintPubkey = new PublicKey(token.address);
+      const senderAta = await getAssociatedTokenAddress(mintPubkey, senderPubkey);
+      const treasuryAta = await getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
+      
+      transaction.add(
+        createTransferInstruction(
+          senderAta,
+          treasuryAta,
+          senderPubkey,
+          Number(amountAtomic)
+        )
+      );
+    }
+
+    const txSignature = await solWallet.sendTransaction(transaction, connection);
+    return { escrowTxHash: txSignature, walletAddress: solWallet.address };
   }
 
   const wallet = resolveWallet(params.wallets, params.preferredWalletAddress);
@@ -335,15 +391,6 @@ export async function executeOnchainEscrowStakeTx(params: {
   const sender = normalizeAddress(wallet.address);
   if (!sender) {
     throw new Error("Connected wallet address is invalid.");
-  }
-
-  const amountAtomicRaw =
-    typeof params.amountAtomic === "string" ? params.amountAtomic.trim() : "";
-  const amountAtomic = /^\d+$/.test(amountAtomicRaw)
-    ? BigInt(amountAtomicRaw)
-    : toAtomicAmount(params.amount, token.decimals);
-  if (amountAtomic <= BigInt(0)) {
-    throw new Error("Stake amount must be greater than zero.");
   }
 
   if (token.isNative) {

@@ -37,27 +37,25 @@ export function MobileNavigation({
 
   const navItems = [
     {
+      path: "/agents",
+      iconPath: "/assets/bantzzlogo.svg",
+      label: "Agents",
+      isActive: location.startsWith("/agents"),
+      tourId: "agents",
+    },
+    {
       path: "/challenges",
       iconPath: "/assets/versus.svg",
-      label: "Markets",
+      label: "Arena",
       isActive: location.startsWith("/challenges") || location === "/",
       tourId: "challenges",
     },
-    ...(!user ? [
-      {
-        path: "/agents",
-        iconPath: "/assets/bantzzlogo.svg",
-        label: "Agents",
-        isActive: location.startsWith("/agents"),
-        tourId: "agents",
-      },
-    ] : []),
     {
-      path: "/friends",
-      iconPath: "/assets/avatar/bantah-guys-avatar 1.png",
-      label: "Friends",
-      isActive: location.startsWith("/friends"),
-      tourId: "friends",
+      path: "/leaderboard",
+      iconPath: "/assets/listsvg.svg",
+      label: "KOH",
+      isActive: location.startsWith("/leaderboard"),
+      tourId: "leaderboard",
     },
     {
       path: "create",
@@ -68,13 +66,6 @@ export function MobileNavigation({
       isCreateButton: true,
     },
     ...(user ? [
-      {
-        path: "/history",
-        iconPath: "/assets/listsvg.svg",
-        label: "History",
-        isActive: location.startsWith("/history"),
-        tourId: "history",
-      },
       {
         path: "/profile",
         iconPath: "/assets/user.svg",
