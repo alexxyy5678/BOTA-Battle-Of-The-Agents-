@@ -178,91 +178,7 @@ function stripAgentAvatar(seed: string) {
   return arenaAgentAvatar(seed);
 }
 
-const MOCK_FIGHTER_STRIP_CARDS: FighterStripCard[] = [
-  {
-    id: 'mock-frostline',
-    mode: 'arena',
-    slotLabel: 'Next 1',
-    status: 'queued',
-    statusLabel: 'Queue',
-    startsInSeconds: 30,
-    leftName: 'ChaosAgent_88',
-    rightName: 'GuardianPrime',
-    leftTag: 'Berserker',
-    rightTag: 'Sentinel',
-    leftAvatar: stripAgentAvatar('mock-frostline:left'),
-    rightAvatar: stripAgentAvatar('mock-frostline:right'),
-    meta: '00:30',
-    arena: 'Frostline',
-    accent: 'purple',
-  },
-  {
-    id: 'mock-glacier',
-    mode: 'arena',
-    slotLabel: 'Next 2',
-    status: 'queued',
-    statusLabel: 'Queue',
-    startsInSeconds: 60,
-    leftName: 'ArenaKing',
-    rightName: 'SignalRider',
-    leftTag: 'Champion',
-    rightTag: 'Counter',
-    leftAvatar: stripAgentAvatar('mock-glacier:left'),
-    rightAvatar: stripAgentAvatar('mock-glacier:right'),
-    meta: '01:00',
-    arena: 'Glacier Ring',
-    accent: 'cyan',
-  },
-  {
-    id: 'mock-crown',
-    mode: 'arena',
-    slotLabel: 'Next 3',
-    status: 'rematch',
-    statusLabel: 'Rematch',
-    leftName: 'VaultRunner',
-    rightName: 'OraclePrime',
-    leftTag: 'Runner',
-    rightTag: 'Oracle',
-    leftAvatar: stripAgentAvatar('mock-crown:left'),
-    rightAvatar: stripAgentAvatar('mock-crown:right'),
-    meta: 'Round 1',
-    arena: 'Crown Court',
-    accent: 'amber',
-  },
-  {
-    id: 'mock-nova',
-    mode: 'arena',
-    slotLabel: 'Next 4',
-    status: 'cancelled',
-    statusLabel: 'Cancelled',
-    leftName: 'RiskBreaker',
-    rightName: 'AlphaGuard',
-    leftTag: 'Rush',
-    rightTag: 'Guard',
-    leftAvatar: stripAgentAvatar('mock-nova:left'),
-    rightAvatar: stripAgentAvatar('mock-nova:right'),
-    meta: 'Round 1',
-    arena: 'Nova Ice',
-    accent: 'green',
-  },
-  {
-    id: 'mock-apex',
-    mode: 'arena',
-    slotLabel: 'Next 5',
-    status: 'queued',
-    statusLabel: 'Queue',
-    startsInSeconds: 120,
-    leftName: 'MomentumMax',
-    rightName: 'TacticNode',
-    leftTag: 'Momentum',
-    rightTag: 'Tactics',
-    leftAvatar: stripAgentAvatar('mock-apex:left'),
-    rightAvatar: stripAgentAvatar('mock-apex:right'),
-    meta: 'Warm-up',
-    arena: 'Apex Arena',
-    accent: 'rose',
-  },
-];
+// Mock cards removed
 
 const ARENA_PREVIEW_EVENT = 'bantahbro:arena-preview-change';
 
@@ -381,10 +297,9 @@ function MiniSparkline({ data, bullish }: { data: number[]; bullish: boolean }) 
 }
 
 function arenaBattleRows(feed: AgentBattleFeed | undefined): MarketTableEntry[] {
-  const cards = [
-    buildCurrentFighterStripCard(feed),
-    ...MOCK_FIGHTER_STRIP_CARDS,
-  ];
+  const cards = feed?.battles && feed.battles.length > 0 
+    ? [buildCurrentFighterStripCard(feed)] 
+    : [];
 
   return cards.map((card, index) => {
     const startsAt = new Date(Date.now() + Math.max(0, card.startsInSeconds || 0) * 1000).toISOString();

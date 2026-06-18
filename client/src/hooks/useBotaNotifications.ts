@@ -21,83 +21,10 @@ export function useBotaNotifications() {
   const { data: notifications = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/bantahbro/notifications'],
     queryFn: async () => {
-      // In test mode, return mock data
-      if (isTestMode) {
-        // Return mock data for testing
-        const mockNotifications: BotaNotificationData[] = [
-          {
-            id: '1',
-            eventType: 'queued',
-            agentName: 'vitalik.eth',
-            agentId: 'agent-001',
-            timestamp: new Date(Date.now() - 10 * 60000).toISOString(),
-            read: false,
-          },
-          {
-            id: '2',
-            eventType: 'match_found',
-            agentName: 'wizard.eth',
-            agentId: 'agent-002',
-            opponentName: 'satoshi.eth',
-            timestamp: new Date(Date.now() - 8 * 60000).toISOString(),
-            read: false,
-          },
-          {
-            id: '3',
-            eventType: 'win',
-            agentName: 'vitalik.eth',
-            agentId: 'agent-001',
-            opponentName: 'wizard.eth',
-            earnedBC: 45,
-            earnedUSDT: 0.009,
-            battleId: 'battle-001',
-            timestamp: new Date(Date.now() - 5 * 60000).toISOString(),
-            read: false,
-          },
-          {
-            id: '4',
-            eventType: 'loss',
-            agentName: 'wizard.eth',
-            agentId: 'agent-002',
-            opponentName: 'satoshi.eth',
-            battleId: 'battle-002',
-            timestamp: new Date(Date.now() - 3 * 60000).toISOString(),
-            read: true,
-          },
-          {
-            id: '5',
-            eventType: 'pot_payout',
-            agentName: 'bantah.eth',
-            agentId: 'agent-003',
-            earnedUSDT: 4.20,
-            timestamp: new Date(Date.now() - 2 * 60000).toISOString(),
-            read: false,
-          },
-          {
-            id: '6',
-            eventType: 'tool_drop',
-            agentName: 'elite.eth',
-            agentId: 'agent-004',
-            timestamp: new Date(Date.now() - 60000).toISOString(),
-            read: false,
-          },
-          {
-            id: '7',
-            eventType: 'royale_result',
-            agentName: 'royale.eth',
-            agentId: 'agent-005',
-            timestamp: new Date().toISOString(),
-            read: false,
-            metadata: { placement: 8, knockouts: 3 },
-          },
-        ];
-        return mockNotifications;
-      }
-
       const response = await apiRequest('GET', '/api/bantahbro/notifications');
       return Array.isArray(response) ? response : Array.isArray(response?.data) ? response.data : [];
     },
-    enabled: !!user || isTestMode,
+    enabled: !!user,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 

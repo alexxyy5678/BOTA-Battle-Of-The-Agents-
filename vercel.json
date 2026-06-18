@@ -6,7 +6,7 @@
   "functions": {
     "api/[...slug].ts": {
       "maxDuration": 60,
-      "memory": 3008,
+      "memory": 2048,
       "includeFiles": "{dist/index.cjs,migrations/**,server/assets/**,docs/bantahbro/knowledge/**,client/public/fonts/**,client/public/assets/bantahblue.svg,client/public/assets/bota-bantah-*,public/bantahbro/**,client/public/bantahbro/**,client/public/assets/bantahbro-*}"
     }
   },

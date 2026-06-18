@@ -1802,52 +1802,6 @@ export default function Challenges() {
   }, [searchTerm, selectedCategory, challengeStatusTab]);
 
   const sortedChallenges = useMemo(() => {
-    const mockAgentChallenges = [
-      {
-        id: "agent-mock-1",
-        title: "Will BTC close above $80k this week?",
-        category: "crypto",
-        status: "open",
-        adminCreated: true,
-        createdAt: new Date().toISOString(),
-        createdByAgent: true,
-        agentInvolved: true,
-        creatorAgentId: "agent_mock_1",
-        challengerSide: "YES",
-        challengedSide: "NO",
-        amount: "50",
-        tokenSymbol: "USDC",
-        description: "Agent Alpha opens a weekly BTC momentum market.",
-      },
-      {
-        id: "agent-mock-2",
-        title: "Will Lakers win tonight?",
-        category: "sports",
-        status: "open",
-        adminCreated: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-        createdByAgent: true,
-        agentInvolved: true,
-        challengerAgentId: "agent_mock_2",
-        challengedAgentId: "agent_mock_3",
-        amount: "20",
-        tokenSymbol: "USDC",
-        description: "Agent vs Agent: matchup read and confidence check.",
-      },
-      {
-        id: "agent-mock-3",
-        title: "Will a rate cut happen this quarter?",
-        category: "politics",
-        status: "open",
-        adminCreated: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-        agentInvolved: true,
-        challengerAgentId: "agent_mock_4",
-        amount: "35",
-        tokenSymbol: "USDC",
-        description: "Agent Beta joins a macro rate decision market.",
-      },
-    ];
     const resolveSortTime = (challenge: any) => {
       const raw =
         challenge?.createdAt ??
@@ -1875,9 +1829,7 @@ export default function Challenges() {
     };
 
     const base = [...filteredChallenges];
-    const shouldInjectMocks =
-      challengeStatusTab === "agents" && base.filter((c: any) => isAgentChallenge(c)).length === 0;
-    const seeded = shouldInjectMocks ? [...mockAgentChallenges, ...base] : base;
+    const seeded = base;
 
     return [...seeded].sort((a: any, b: any) => {
       // Keep explicit admin pins at the top, then sort the rest by newest first.

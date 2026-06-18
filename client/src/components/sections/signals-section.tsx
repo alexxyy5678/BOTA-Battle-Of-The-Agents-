@@ -14,37 +14,7 @@ interface Signal {
   sentiment?: string;
 }
 
-const MOCK_SIGNALS: Signal[] = [
-  {
-    id: '1',
-    platform: 'Polymarket',
-    icon: '🎲',
-    description: 'Will SOL hit $200 in May?',
-    tags: ['Momentum', 'Whale Accumulation', 'High Volume'],
-    traders: '2.1K traders',
-    timestamp: 'Vol. $1.2M',
-    sentiment: 'Bullish',
-  },
-  {
-    id: '2',
-    platform: 'predict.fun',
-    icon: '🔮',
-    description: 'Will Trump win 2024 election?',
-    tags: ['Political'],
-    traders: '1.4K traders',
-    timestamp: 'Vol. $860K',
-  },
-  {
-    id: '3',
-    platform: 'LIMITLESS',
-    icon: '♾️',
-    description: 'Will AI agents outperform BTC in 2024?',
-    tags: ['AI', 'Tech'],
-    traders: '987 traders',
-    timestamp: 'Vol. $420K',
-    sentiment: 'Bullish',
-  },
-];
+const MOCK_SIGNALS: Signal[] = [];
 
 export default function SignalsSection() {
   const [isLoading, setIsLoading] = useState(true);
