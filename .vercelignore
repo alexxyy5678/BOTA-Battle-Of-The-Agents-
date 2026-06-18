@@ -1,5 +1,6 @@
 contracts/
-scripts/
+scripts/*
+!scripts/build-vercel-server.mjs
 tests/
 node_modules/
 dist/

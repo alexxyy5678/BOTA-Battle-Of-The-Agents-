@@ -1,14 +1,14 @@
 import { relations } from "drizzle-orm/relations";
-import { chats, chatParticipants, usersInAuth, challengeEvidenceReviews, eventChatMessages, eventChatMessageReactions, pointTransactions, messages, wallets, withdrawals, walletTransactions, userPresence, payoutJobs, payoutEntries, challengeDisputes, privateChats, chatMessages, creatorEarnings, eventEscrow, supportMessages } from "./schema";
+import { chats, chatParticipants, users, challengeEvidenceReviews, eventChatMessages, eventChatMessageReactions, pointTransactions, messages, wallets, withdrawals, walletTransactions, userPresence, payoutJobs, payoutEntries, challengeDisputes, privateChats, chatMessages, creatorEarnings, eventEscrow, supportMessages } from "./schema";
 
 export const chatParticipantsRelations = relations(chatParticipants, ({one}) => ({
 	chat: one(chats, {
 		fields: [chatParticipants.chatId],
 		references: [chats.id]
 	}),
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [chatParticipants.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
@@ -17,7 +17,7 @@ export const chatsRelations = relations(chats, ({many}) => ({
 	messages: many(messages),
 }));
 
-export const usersInAuthRelations = relations(usersInAuth, ({many}) => ({
+export const usersRelations = relations(users, ({many}) => ({
 	chatParticipants: many(chatParticipants),
 	challengeEvidenceReviews: many(challengeEvidenceReviews),
 	eventChatMessages: many(eventChatMessages),
@@ -26,10 +26,10 @@ export const usersInAuthRelations = relations(usersInAuth, ({many}) => ({
 	messages: many(messages),
 	userPresences: many(userPresence),
 	challengeDisputes_initiatedBy: many(challengeDisputes, {
-		relationName: "challengeDisputes_initiatedBy_usersInAuth_id"
+		relationName: "challengeDisputes_initiatedBy_users_id"
 	}),
 	challengeDisputes_resolvedBy: many(challengeDisputes, {
-		relationName: "challengeDisputes_resolvedBy_usersInAuth_id"
+		relationName: "challengeDisputes_resolvedBy_users_id"
 	}),
 	chatMessages: many(chatMessages),
 	creatorEarnings: many(creatorEarnings),
@@ -39,9 +39,9 @@ export const usersInAuthRelations = relations(usersInAuth, ({many}) => ({
 }));
 
 export const challengeEvidenceReviewsRelations = relations(challengeEvidenceReviews, ({one}) => ({
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [challengeEvidenceReviews.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
@@ -54,9 +54,9 @@ export const eventChatMessagesRelations = relations(eventChatMessages, ({one, ma
 	eventChatMessages: many(eventChatMessages, {
 		relationName: "eventChatMessages_replyTo_eventChatMessages_id"
 	}),
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [eventChatMessages.senderId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 	eventChatMessageReactions: many(eventChatMessageReactions),
 }));
@@ -66,16 +66,16 @@ export const eventChatMessageReactionsRelations = relations(eventChatMessageReac
 		fields: [eventChatMessageReactions.messageId],
 		references: [eventChatMessages.id]
 	}),
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [eventChatMessageReactions.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
 export const pointTransactionsRelations = relations(pointTransactions, ({one}) => ({
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [pointTransactions.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
@@ -84,9 +84,9 @@ export const messagesRelations = relations(messages, ({one}) => ({
 		fields: [messages.chatId],
 		references: [chats.id]
 	}),
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [messages.senderId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
@@ -100,9 +100,9 @@ export const withdrawalsRelations = relations(withdrawals, ({one}) => ({
 export const walletsRelations = relations(wallets, ({one, many}) => ({
 	withdrawals: many(withdrawals),
 	walletTransactions: many(walletTransactions),
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [wallets.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
@@ -114,9 +114,9 @@ export const walletTransactionsRelations = relations(walletTransactions, ({one})
 }));
 
 export const userPresenceRelations = relations(userPresence, ({one}) => ({
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [userPresence.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
@@ -132,15 +132,15 @@ export const payoutJobsRelations = relations(payoutJobs, ({many}) => ({
 }));
 
 export const challengeDisputesRelations = relations(challengeDisputes, ({one}) => ({
-	usersInAuth_initiatedBy: one(usersInAuth, {
+	users_initiatedBy: one(users, {
 		fields: [challengeDisputes.initiatedBy],
-		references: [usersInAuth.id],
-		relationName: "challengeDisputes_initiatedBy_usersInAuth_id"
+		references: [users.id],
+		relationName: "challengeDisputes_initiatedBy_users_id"
 	}),
-	usersInAuth_resolvedBy: one(usersInAuth, {
+	users_resolvedBy: one(users, {
 		fields: [challengeDisputes.resolvedBy],
-		references: [usersInAuth.id],
-		relationName: "challengeDisputes_resolvedBy_usersInAuth_id"
+		references: [users.id],
+		relationName: "challengeDisputes_resolvedBy_users_id"
 	}),
 }));
 
@@ -149,9 +149,9 @@ export const chatMessagesRelations = relations(chatMessages, ({one}) => ({
 		fields: [chatMessages.chatId],
 		references: [privateChats.id]
 	}),
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [chatMessages.senderId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
@@ -160,22 +160,22 @@ export const privateChatsRelations = relations(privateChats, ({many}) => ({
 }));
 
 export const creatorEarningsRelations = relations(creatorEarnings, ({one}) => ({
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [creatorEarnings.creatorId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
 export const eventEscrowRelations = relations(eventEscrow, ({one}) => ({
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [eventEscrow.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));
 
 export const supportMessagesRelations = relations(supportMessages, ({one}) => ({
-	usersInAuth: one(usersInAuth, {
+	users: one(users, {
 		fields: [supportMessages.userId],
-		references: [usersInAuth.id]
+		references: [users.id]
 	}),
 }));

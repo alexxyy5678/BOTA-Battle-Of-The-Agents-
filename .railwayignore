@@ -5,6 +5,7 @@ cache
 artifacts
 .codex-tmp
 .codex-tmp*
+.vercel
 attached_assets
 chrome-extension
 archived
@@ -15,9 +16,16 @@ docs
 contracts
 scripts
 supabase
+bantaharena/
 *.log
 *.zip
 *.tar.gz
+*.mp4
+client/public/2dgame/
+client/public/assets/
+client/.codex-run/
+.codex-tmp
+onchain-index.js
 bantah.db
 .env
 .env.local
