@@ -2568,7 +2568,7 @@ async function loadRewardStatsByArenaRecordId(records: BotaArenaBattleRecordRow[
           OR c."record_id" = b."id"::text
         )
         AND c."status" IN ('draft', 'claimable', 'claimed')
-      WHERE b."id"::text = ANY(${recordIdArray})
+      WHERE b."id" = ANY(${recordIdArray}::uuid[])
       GROUP BY b."id"
     `);
     return new Map(
@@ -2587,11 +2587,27 @@ async function loadArenaRecordStatsForProfiles(profiles: BotaFighterProfile[]) {
 
   let records: BotaArenaBattleRecordRow[] = [];
   try {
-    records = await db
-      .select()
+    const sqlIds = Array.from(requestedIds);
+    const partialRecords = await db
+      .select({
+        id: botaArenaBattleRecords.id,
+        battleId: botaArenaBattleRecords.battleId,
+        status: botaArenaBattleRecords.status,
+        winnerAgentId: botaArenaBattleRecords.winnerAgentId,
+        loserAgentId: botaArenaBattleRecords.loserAgentId,
+        fighters: botaArenaBattleRecords.fighters,
+        spectators: botaArenaBattleRecords.spectators,
+        rounds: botaArenaBattleRecords.rounds,
+        resolvedAt: botaArenaBattleRecords.resolvedAt,
+        endedAt: botaArenaBattleRecords.endedAt,
+        updatedAt: botaArenaBattleRecords.updatedAt,
+        createdAt: botaArenaBattleRecords.createdAt,
+      })
       .from(botaArenaBattleRecords)
       .orderBy(asc(botaArenaBattleRecords.createdAt))
       .limit(5000);
+    
+    records = partialRecords as unknown as BotaArenaBattleRecordRow[];
   } catch (error) {
     warnFighterProfileFallback("arena record stats", error);
     return statsByAgentId;
@@ -3016,10 +3032,22 @@ export async function listBotaFighterProfilesForOwner(input: {
     };
   } catch (error) {
     warnFighterProfileFallback("owner profile list", error);
+    
+    const memoryFeed = Array.from(memoryFighterProfiles.values()).filter(profile => {
+      const pUserId = profile.metadata?.importedByUserId || profile.metadata?.ownerUserId;
+      const pWallet1 = String(profile.walletAddress || '').toLowerCase();
+      const pWallet2 = String(profile.metadata?.importedByWallet || '').toLowerCase();
+      const pWallet3 = String(profile.metadata?.ownerWallet || '').toLowerCase();
+      
+      if (userId && pUserId === userId) return true;
+      if (wallets.some(w => w === pWallet1 || w === pWallet2 || w === pWallet3)) return true;
+      return false;
+    });
+
     return {
-      profiles: [] as BotaFighterProfile[],
+      profiles: memoryFeed.slice(0, requestedLimit),
       updatedAt: new Date().toISOString(),
-      warning: "Owner fighter profile store is unavailable; private fallback data is disabled.",
+      warning: "Owner fighter profile store is unavailable; using memory fallback for local development.",
     };
   }
 }

@@ -97,6 +97,7 @@ type ChallengeForm = {
   visibility: 'public' | 'private'
   predictionEnabled: boolean
   message: string
+  source?: 'web' | 'telegram' | 'twitter'
 }
 
 function titleCase(value?: string | null) {
@@ -406,11 +407,6 @@ export default function AgentsPage() {
     staleTime: 15_000,
     refetchInterval: 30_000,
   })
-  const { data: kothData } = useQuery<{ participants: any[] }>({
-    queryKey: ['/api/bantahbro/koth/participants'],
-    queryFn: () => apiRequest('GET', '/api/bantahbro/koth/participants'),
-    refetchInterval: 5_000,
-  })
 
   const viewerWallet = typeof (user as any)?.walletAddress === 'string' ? (user as any).walletAddress : null
   const { tools: inventoryTools, equipTool, unequipTool } = useBotaInventory(viewerWallet)
@@ -552,7 +548,10 @@ export default function AgentsPage() {
 
   const submitChallenge = () => {
     if (!challengeForm) return;
-    createChallengeMutation.mutate(challengeForm)
+    const urlParams = new URLSearchParams(window.location.search);
+    const sourceParam = urlParams.get('source');
+    const source = (sourceParam === 'telegram' || sourceParam === 'twitter') ? sourceParam : 'web';
+    createChallengeMutation.mutate({ ...challengeForm, source });
   }
 
   const toggleFollow = (agent: DirectoryAgent) => {
@@ -686,16 +685,6 @@ export default function AgentsPage() {
                       <div className="mt-2 flex min-w-0 flex-wrap gap-1">
                         <AgentSourceBadge agent={agent} />
                       </div>
-                      {kothData?.participants?.find(p => p.agentId === agent.id)?.status === 'queued' && (
-                        <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-black text-primary">
-                          🛡️ Queued for KOTH
-                        </div>
-                      )}
-                      {kothData?.participants?.find(p => p.agentId === agent.id)?.status === 'live' && (
-                        <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-green-500/20 px-1.5 py-0.5 text-[10px] font-black text-green-500">
-                          ⚔️ Live in KOTH
-                        </div>
-                      )}
                     </div>
                   </div>
 

@@ -56,6 +56,7 @@ export type ArenaGuiSideState = {
   health: number;
   status: AgentBattleSide['status'];
   isLeading: boolean;
+  loadoutTools?: { id: string; name: string; imageUrl: string; type: string }[];
 };
 
 export type ArenaGuiEventState = {

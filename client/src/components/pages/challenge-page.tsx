@@ -34,6 +34,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { getFarcasterShareUrl, getTwitterShareUrl, shareBotaChallenge } from '@/utils/sharing';
 import type { AppSection } from '@/app/page';
+import { MessageSquare, Twitter, Globe2 } from 'lucide-react';
 import type { AgentBattle, AgentBattleFeed, AgentBattleSide } from '@/types/agentBattle';
 import type {
   AgentBattleP2PPool,
@@ -47,7 +48,7 @@ import type {
 } from '@shared/botaAgentChallengePrediction';
 import type { BotaArenaBattleRecord } from '@shared/botaArenaBattleRecord';
 
-type ChallengeTab = 'open' | 'live' | 'callouts' | 'friends' | 'mine';
+type ChallengeTab = 'callouts' | 'live' | 'mine';
 type ChallengeFilter =
   | 'all'
   | 'agent-battles'
@@ -134,6 +135,7 @@ type AgentPvpChallenge = {
   viewerRole: 'challenger' | 'opponent' | 'spectator';
   challengeUrl: string;
   shareCaption: string;
+  source?: 'web' | 'telegram' | 'twitter';
 };
 
 type AgentPvpChallengeFeed = {
@@ -168,10 +170,8 @@ type AgentPvpPredictionSelection = {
 } | null;
 
 const tabs: Array<{ id: ChallengeTab; label: string }> = [
-  { id: 'open', label: 'Open' },
-  { id: 'live', label: 'Live' },
-  { id: 'callouts', label: 'Call-Outs' },
-  { id: 'friends', label: 'Friends' },
+  { id: 'live', label: 'Live Battles' },
+  { id: 'callouts', label: 'Pending Challenges' },
   { id: 'mine', label: 'My Challenges' },
 ];
 
@@ -791,6 +791,19 @@ function AgentCalloutCard({
             <span className="inline-flex items-center gap-1 rounded bg-primary/15 px-2 py-1 text-[10px] font-black uppercase text-primary">
               <Swords size={11} /> Agent Callout
             </span>
+            {challenge.source === 'telegram' ? (
+              <span className="flex items-center gap-1 rounded bg-[#0088cc]/10 px-1.5 py-1 text-[9px] font-black uppercase text-[#0088cc]">
+                <MessageSquare size={10} /> TG
+              </span>
+            ) : challenge.source === 'twitter' ? (
+              <span className="flex items-center gap-1 rounded bg-foreground/10 px-1.5 py-1 text-[9px] font-black uppercase text-foreground">
+                <Twitter size={10} /> X
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 rounded bg-muted px-1.5 py-1 text-[9px] font-black uppercase text-muted-foreground">
+                <Globe2 size={10} /> Web
+              </span>
+            )}
           </div>
           <span className="rounded bg-background px-2 py-1 text-[10px] font-black uppercase text-muted-foreground">
             {statusLabel}
@@ -1458,7 +1471,7 @@ export default function ChallengePage({ onOpenBattle }: ChallengePageProps) {
   const { wallets } = useWallets();
   const walletAddress = getWalletAddress(wallets as unknown[]);
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<ChallengeTab>('open');
+  const [activeTab, setActiveTab] = useState<ChallengeTab>('live');
   const [activeFilter, setActiveFilter] = useState<ChallengeFilter>('all');
   const [betSelection, setBetSelection] = useState<ChallengeBetSelection>(null);
   const [pvpPredictionSelection, setPvpPredictionSelection] = useState<AgentPvpPredictionSelection>(null);
@@ -1791,7 +1804,7 @@ export default function ChallengePage({ onOpenBattle }: ChallengePageProps) {
 
   const visibleBattles = useMemo(() => {
     if (isResultFilter(activeFilter)) return [];
-    if (activeTab === 'callouts' || activeTab === 'friends' || activeTab === 'mine') return [];
+    if (activeTab === 'callouts' || activeTab === 'mine') return [];
     const tabBattles = activeTab === 'live' ? liveBattles : battles;
     return tabBattles.filter((battle) => matchesFilter(battle, activeFilter, nowMs));
   }, [activeFilter, activeTab, battles, liveBattles, nowMs]);
@@ -1807,9 +1820,8 @@ export default function ChallengePage({ onOpenBattle }: ChallengePageProps) {
   }, [activeFilter, activeTab, arenaRecords]);
 
   const visiblePvpChallenges = useMemo(() => {
-    if (activeTab === 'live' || activeTab === 'friends') return [];
+    if (activeTab === 'live') return [];
     return pvpChallenges.filter((challenge) => {
-      if (activeTab === 'open' && !isResultFilter(activeFilter) && activeFilter !== 'live' && challenge.status !== 'pending') return false;
       if (activeTab === 'callouts' && !isResultFilter(activeFilter) && !['pending', 'accepted', 'scheduled', 'live'].includes(challenge.status)) return false;
       if (activeTab === 'mine' && challenge.viewerRole === 'spectator') return false;
       return matchesPvpChallengeFilter(challenge, activeFilter);
@@ -1846,7 +1858,7 @@ export default function ChallengePage({ onOpenBattle }: ChallengePageProps) {
     setActiveTab(tab);
     if (tab === 'live') {
       setActiveFilter('live');
-    } else if (tab === 'open' && activeFilter === 'live') {
+    } else if (tab === 'callouts' && activeFilter === 'live') {
       setActiveFilter('all');
     }
   };

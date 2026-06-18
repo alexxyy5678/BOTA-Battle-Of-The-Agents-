@@ -627,6 +627,7 @@ export default function MarketplacePage({ onNavigate }: { onNavigate?: (section:
   const { data: toolsData } = useGen1Tools()
   const { data: toolListingsData, isLoading: listingsLoading } = useGen1Listings()
   const { data: inventoryData } = useGen1Inventory(viewerId)
+  const { data: packsData, isLoading: packsLoading } = useGen1Packs()
   const createListingMutation = useCreateGen1Listing()
   const cancelListingMutation = useCancelGen1Listing()
   const buyMutation = useBuyGen1Listing()
@@ -823,8 +824,8 @@ export default function MarketplacePage({ onNavigate }: { onNavigate?: (section:
         </section>
 
         <section className="rounded-lg bg-card p-2 shadow-sm">
-          <div className="grid w-full grid-cols-5 gap-1">
-            {['fighters', 'packs', 'buy-bc'].map((tab) => {
+          <div className="grid w-full grid-cols-3 gap-1">
+            {['buy-bc', 'fighters', 'packs'].map((tab) => {
               const label = tab === 'fighters' ? 'FIGHTERS' : tab === 'buy-bc' ? 'BUY BC' : 'PACKS'
               return (
                 <Button
@@ -1257,187 +1258,68 @@ export default function MarketplacePage({ onNavigate }: { onNavigate?: (section:
               <p className="text-xs text-muted-foreground">Unknown upgrades for your autonomous fighter.</p>
             </div>
             <div className="grid w-full grid-cols-2 gap-1 sm:grid-cols-2 lg:grid-cols-4">
-              {/* BantCredit Pack */}
-              <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition duration-200 hover:-translate-y-0.5">
-                <div className="flex h-full flex-col gap-1.5 p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="text-xl">📦</div>
-                        <div className="flex -space-x-1.5 opacity-90">
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-30 shadow-sm"><Shield size={10} className="text-amber-400" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-20 shadow-sm"><Battery size={10} className="text-emerald-400" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-10 shadow-sm"><Wrench size={10} className="text-slate-300" /></div>
-                        </div>
-                      </div>
-                      <h3 className="mt-1 text-sm font-black uppercase tracking-[0.1em] text-foreground">BantCredit Pack</h3>
-                      <p className="text-[9px] text-muted-foreground">Common Agent Crate</p>
-                    </div>
-                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[8px] font-black uppercase text-emerald-400">500 BC</span>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground">
-                    <span className="font-black uppercase tracking-[0.18em]">Contains</span>
-                    <div className="mt-1">Enhancements • Doctrines • Traits</div>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground border-t border-border pt-2">
-                    <span className="font-black uppercase tracking-[0.18em]">Odds</span>
-                    <div className="mt-1">🟢 65% Common • 🔵 30% Rare • 🟣 5% Epic</div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="mt-auto w-full h-8 text-[9px] font-black uppercase tracking-[0.12em]"
-                    onClick={() => {
-                        setSelectedPack({
-                        title: 'BantCredit Pack',
-                          packId: 'tactical-pack',
-                        subtitle: 'Common Agent Crate',
-                        priceLabel: '500 BC',
-                        detailsLabel: 'Contains',
-                        details: 'Enhancements • Doctrines • Traits',
-                        odds: '🟢 65% Common • 🔵 30% Rare • 🟣 5% Epic',
-                        actionLabel: 'Open Pack',
-                        actionVariant: 'default',
-                      })
-                      setShowPackModal(true)
-                    }}
-                  >
-                    Open Pack
-                  </Button>
+              {packsLoading ? (
+                <div className="col-span-full rounded-lg bg-card p-4 text-sm font-bold text-muted-foreground">
+                  Loading supply crates...
                 </div>
-              </div>
-
-              {/* Premium Pack */}
-              <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition duration-200 hover:-translate-y-0.5">
-                <div className="flex h-full flex-col gap-1.5 p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="text-xl">💎📦</div>
-                        <div className="flex -space-x-1.5 opacity-90">
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-30 shadow-sm"><Rocket size={10} className="text-rose-500" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-20 shadow-sm"><Crosshair size={10} className="text-cyan-400" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-10 shadow-sm"><Bot size={10} className="text-slate-300" /></div>
+              ) : packsData?.packs?.length ? (
+                packsData.packs.map((pack) => {
+                  const isTactical = pack.type === 'tactical'
+                  const isElite = pack.type === 'elite'
+                  
+                  const icon = isTactical ? '📦' : isElite ? '⚡💎📦⚡' : '💎📦'
+                  
+                  return (
+                    <div key={pack.pack_id} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition duration-200 hover:-translate-y-0.5">
+                      <div className="flex h-full flex-col gap-1.5 p-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="text-xl">{icon}</div>
+                              <div className="flex -space-x-1.5 opacity-90">
+                                <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-30 shadow-sm"><Shield size={10} className="text-amber-400" /></div>
+                                <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-20 shadow-sm"><Battery size={10} className="text-emerald-400" /></div>
+                                <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-10 shadow-sm"><Wrench size={10} className="text-slate-300" /></div>
+                              </div>
+                            </div>
+                            <h3 className="mt-1 text-sm font-black uppercase tracking-[0.1em] text-foreground">{pack.display_name}</h3>
+                            <p className="text-[9px] text-muted-foreground">{pack.type === 'tactical' ? 'Common Agent Crate' : 'Competitive Tier Crate'}</p>
+                          </div>
+                          <span className={`rounded-full border px-2 py-0.5 text-[8px] font-black uppercase ${isTactical ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-violet-500/20 bg-violet-500/10 text-violet-400'}`}>
+                            {pack.price_bc ? `${formatCompact(pack.price_bc)} BC` : pack.price_usd ? `$${pack.price_usd}` : 'Free'}
+                          </span>
                         </div>
+                        
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="mt-auto w-full h-8 text-[9px] font-black uppercase tracking-[0.12em]"
+                          onClick={() => {
+                            setSelectedPack({
+                              title: pack.display_name,
+                              packId: pack.pack_id,
+                              subtitle: pack.type === 'tactical' ? 'Common Agent Crate' : 'Competitive Tier Crate',
+                              priceLabel: pack.price_bc ? `${formatCompact(pack.price_bc)} BC` : pack.price_usd ? `$${pack.price_usd}` : 'Free',
+                              detailsLabel: 'Info',
+                              details: 'Unknown upgrades for your autonomous fighter.',
+                              odds: isTactical ? '🟢 65% Common • 🔵 30% Rare • 🟣 5% Epic' : '🟢 10% Common • 🔵 65% Rare • 🟣 25% Epic',
+                              actionLabel: 'Buy Pack',
+                              actionVariant: 'default',
+                            })
+                            setShowPackModal(true)
+                          }}
+                        >
+                          Buy Pack
+                        </Button>
                       </div>
-                      <h3 className="mt-1 text-sm font-black uppercase tracking-[0.1em] text-foreground">Premium Pack</h3>
-                      <p className="text-[9px] text-muted-foreground">Enhanced Drop Rates</p>
                     </div>
-                    <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[8px] font-black uppercase text-sky-400">120,000 BC</span>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground">
-                    <span className="font-black uppercase tracking-[0.18em]">Contains</span>
-                    <div className="mt-1">Rare Enhancements • Rare Doctrines • Traits</div>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground border-t border-border pt-2">
-                    <span className="font-black uppercase tracking-[0.18em]">Odds</span>
-                    <div className="mt-1">🟢 30% Common • 🔵 55% Rare • 🟣 15% Epic</div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="mt-auto w-full h-8 text-[9px] font-black uppercase tracking-[0.12em]"
-                    onClick={() => {
-                        setSelectedPack({
-                        title: 'Premium Pack',
-                          packId: 'elite-pack',
-                        subtitle: 'Enhanced Drop Rates',
-                        priceLabel: '120,000 BC',
-                        detailsLabel: 'Contains',
-                        details: 'Rare Enhancements • Rare Doctrines • Traits',
-                        odds: '🟢 30% Common • 🔵 55% Rare • 🟣 15% Epic',
-                        actionLabel: 'Buy Pack',
-                        actionVariant: 'default',
-                      })
-                      setShowPackModal(true)
-                    }}
-                  >
-                    Buy Pack
-                  </Button>
+                  )
+                })
+              ) : (
+                <div className="col-span-full rounded-lg bg-card p-4 text-sm font-bold text-muted-foreground">
+                  No packs available right now.
                 </div>
-              </div>
-
-              {/* Elite Pack */}
-              <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition duration-200 hover:-translate-y-0.5">
-                <div className="flex h-full flex-col gap-1.5 p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="text-xl">⚡💎📦⚡</div>
-                        <div className="flex -space-x-1.5 opacity-90">
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-30 shadow-sm"><PlusSquare size={10} className="text-emerald-500" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-20 shadow-sm"><Satellite size={10} className="text-slate-400" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-10 shadow-sm"><Rocket size={10} className="text-rose-500" /></div>
-                        </div>
-                      </div>
-                      <h3 className="mt-1 text-sm font-black uppercase tracking-[0.1em] text-foreground">Elite Pack</h3>
-                      <p className="text-[9px] text-muted-foreground">Competitive Tier Crate</p>
-                    </div>
-                    <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[8px] font-black uppercase text-violet-400">650,000 BC</span>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground">
-                    <span className="font-black uppercase tracking-[0.18em]">Featured</span>
-                    <div className="mt-1">Soul Harvester • Counter Analyzer • Dominion Core</div>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground border-t border-border pt-2">
-                    <span className="font-black uppercase tracking-[0.18em]">Odds</span>
-                    <div className="mt-1">🟢 10% Common • 🔵 65% Rare • 🟣 25% Epic</div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="mt-auto w-full h-8 text-[9px] font-black uppercase tracking-[0.12em]"
-                    onClick={() => {
-                        setSelectedPack({
-                        title: 'Elite Pack',
-                          packId: 'elite-pack',
-                        subtitle: 'Competitive Tier Crate',
-                        priceLabel: '650,000 BC',
-                        detailsLabel: 'Featured',
-                        details: 'Soul Harvester • Counter Analyzer • Dominion Core',
-                        odds: '🟢 10% Common • 🔵 65% Rare • 🟣 25% Epic',
-                        actionLabel: 'Buy Pack',
-                        actionVariant: 'default',
-                      })
-                      setShowPackModal(true)
-                    }}
-                  >
-                    Buy Pack
-                  </Button>
-                </div>
-              </div>
-
-              {/* Mythic Crate */}
-              <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition duration-200 hover:-translate-y-0.5">
-                <div className="flex h-full flex-col gap-1.5 p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="text-xl">👑</div>
-                        <div className="flex -space-x-1.5 opacity-90">
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-30 shadow-sm"><Crown size={10} className="text-amber-400" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-20 shadow-sm"><Gem size={10} className="text-fuchsia-400" /></div>
-                          <div className="w-5 h-5 rounded-md bg-[#1e293b] border border-slate-700 flex items-center justify-center z-10 shadow-sm"><Shield size={10} className="text-amber-400" /></div>
-                        </div>
-                      </div>
-                      <h3 className="mt-1 text-sm font-black uppercase tracking-[0.1em] text-foreground">Mythic Crate</h3>
-                      <p className="text-[9px] text-muted-foreground">Limited Supply</p>
-                    </div>
-                    <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[8px] font-black uppercase text-amber-400">Seasonal</span>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground">
-                    <span className="font-black uppercase tracking-[0.18em]">Contains</span>
-                    <div className="mt-1">Legendary Enhancements • Mythic Doctrines • Soul Traits</div>
-                  </div>
-                  <div className="text-[9px] leading-snug text-muted-foreground border-t border-border pt-2">
-                    <span className="font-black uppercase tracking-[0.18em]">Odds</span>
-                    <div className="mt-1">🔵 40% Rare • 🟣 50% Epic • ⭐ 10% Mythic</div>
-                  </div>
-                  <Button size="sm" variant="outline" className="mt-auto w-full h-8 text-[9px] font-black uppercase tracking-[0.12em]" disabled>
-                    Sold Out
-                  </Button>
-                </div>
-              </div>
+              )}
             </div>
           </section>
         ) : null}

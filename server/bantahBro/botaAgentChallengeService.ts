@@ -6,13 +6,14 @@ import { getBotaFighterProfile } from "./botaFighterProfileService";
 
 export const botaAgentChallengeCreateSchema = z.object({
   challengerAgentId: z.string().trim().min(1).max(180),
-  opponentAgentId: z.string().trim().min(1).max(180),
+  opponentAgentId: z.string().trim().min(1).max(180).optional().nullable(),
   matchType: z.enum(["arena", "degen_vs"]).default("arena"),
   stakeAmount: z.coerce.number().min(0).max(1_000_000).default(50),
-  stakeCurrency: z.enum(["USDC", "BXBT", "USDT", "ETH", "BNB"]).default("USDC"),
+  stakeCurrency: z.enum(["USDC", "BXBT", "USDT", "ETH", "BNB", "BC"]).default("BC"),
   message: z.string().trim().max(240).default(""),
   visibility: z.enum(["public", "private"]).default("public"),
   predictionEnabled: z.coerce.boolean().default(true),
+  source: z.enum(["web", "telegram", "twitter"]).default("web"),
 });
 
 export const botaAgentChallengeAcceptSchema = z.object({
@@ -50,6 +51,7 @@ export type BotaAgentChallenge = {
   viewerRole: "challenger" | "opponent" | "spectator";
   challengeUrl: string;
   shareCaption: string;
+  source: "web" | "telegram" | "twitter";
 };
 
 type ChallengeAgentSnapshot = {
@@ -137,6 +139,7 @@ function normalizeRow(row: any, viewerUserId?: string | null): BotaAgentChalleng
     stakeAmount,
     stakeCurrency,
     message: row.message || null,
+    source: String(row.source || "web") as "web" | "telegram" | "twitter",
     challengerUserId: String(row.challenger_user_id),
     opponentOwnerUserId: row.opponent_owner_user_id || null,
     challengerAgent,
@@ -180,6 +183,7 @@ export async function ensureBotaAgentChallengesTable() {
         "updated_at" timestamp NOT NULL DEFAULT now(),
         "metadata" jsonb NOT NULL DEFAULT '{}'::jsonb
       );
+      ALTER TABLE "bota_agent_pvp_challenges" ADD COLUMN IF NOT EXISTS "source" varchar(32) NOT NULL DEFAULT 'web';
       CREATE INDEX IF NOT EXISTS "idx_bota_agent_pvp_challenges_status"
         ON "bota_agent_pvp_challenges" ("status");
       CREATE INDEX IF NOT EXISTS "idx_bota_agent_pvp_challenges_challenger"
@@ -234,7 +238,8 @@ export async function createBotaAgentChallenge(input: z.infer<typeof botaAgentCh
       "challenger_agent",
       "opponent_agent",
       "expires_at",
-      "metadata"
+      "metadata",
+      "source"
     )
     VALUES (
       ${challengeCode},
@@ -252,7 +257,8 @@ export async function createBotaAgentChallenge(input: z.infer<typeof botaAgentCh
       ${JSON.stringify(agentSnapshot(challengerProfile))}::jsonb,
       ${JSON.stringify(agentSnapshot(opponentProfile))}::jsonb,
       ${expiresAt},
-      ${JSON.stringify({ posterStatus: "queued", escrowStatus: "awaiting_acceptance" })}::jsonb
+      ${JSON.stringify({ posterStatus: "queued", escrowStatus: "awaiting_acceptance" })}::jsonb,
+      ${parsed.source}
     )
     RETURNING *;
   `);
@@ -356,4 +362,51 @@ export async function acceptBotaAgentChallenge(input: {
     throw new Error("Challenge is not available for acceptance.");
   }
   return normalizeRow(row, input.userId);
+}
+
+export async function declineBotaAgentChallenge(input: {
+  challengeCode: string;
+  userId: string;
+}) {
+  await ensureBotaAgentChallengesTable();
+  const now = new Date();
+  const result = await db.execute(sql`
+    UPDATE "bota_agent_pvp_challenges"
+    SET
+      "status" = 'cancelled',
+      "updated_at" = ${now},
+      "metadata" = "metadata" || ${JSON.stringify({ declinedByUserId: input.userId })}::jsonb
+    WHERE "challenge_code" = ${input.challengeCode}
+      AND "status" = 'pending'
+      AND ("opponent_owner_user_id" IS NULL OR "opponent_owner_user_id" = ${input.userId})
+    RETURNING *;
+  `);
+
+  const row = tableRows(result)[0];
+  if (!row) {
+    throw new Error("Challenge is not available or you are not authorized to decline it.");
+  }
+  return normalizeRow(row, input.userId);
+}
+
+export async function updateBotaAgentChallengeMetadata(input: {
+  challengeCode: string;
+  metadata: Record<string, unknown>;
+}) {
+  await ensureBotaAgentChallengesTable();
+  const now = new Date();
+  const result = await db.execute(sql`
+    UPDATE "bota_agent_pvp_challenges"
+    SET
+      "updated_at" = ${now},
+      "metadata" = "metadata" || ${JSON.stringify(input.metadata)}::jsonb
+    WHERE "challenge_code" = ${input.challengeCode}
+    RETURNING *;
+  `);
+
+  const row = tableRows(result)[0];
+  if (!row) {
+    throw new Error("Challenge not found.");
+  }
+  return normalizeRow(row);
 }

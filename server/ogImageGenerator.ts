@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { CHALLENGE_PLATFORM_FEE_RATE } from "@shared/feeConfig";
 import type { IStorage } from "./storage";
+import { getBotaAgentChallengeByCode } from "./bantahBro/botaAgentChallengeService";
 
 const CHAIN_LABELS: Record<number, string> = {
   8453: "Base",
@@ -673,6 +674,93 @@ async function buildChallengeCardSvg(challenge: any, storage: IStorage, baseUrl:
   `;
 }
 
+async function buildBotaChallengeCardSvg(challenge: any, baseUrl: string): Promise<string> {
+  const logoDataUri = (await loadFirstAvailableFileAsDataUri(BANTAH_BLUE_LOGO_CANDIDATE_PATHS, "image/svg+xml"))
+    || (await resolveImageDataUri("/assets/bantahblue.svg", baseUrl))
+    || "";
+  const ogFontDataUri = await getOgFontDataUri(baseUrl);
+
+  // We can reuse the challenge layout but with BotaChallenge fields
+  const titleLines = wrapText(String(`@${challenge.challengerAgent?.name || 'Agent'} challenges @${challenge.opponentAgent?.name || 'Agent'}` || "PvP Challenge"), 24, 3);
+  const stakeText = formatTokenAmount(challenge.stakeAmount, challenge.stakeCurrency);
+  const payoutText = formatPayout(challenge.stakeAmount, challenge.stakeCurrency);
+  const deadlineLabel = formatDateLabel(challenge.expiresAt);
+  const statusLabel = String(challenge.status || "pending").replace(/_/g, " ").toUpperCase();
+  const statusWidth = getPillWidth(statusLabel, 140);
+  const stakeFontSize = getStakeFontSize(stakeText);
+  const titleTop = 156;
+  const titleLineHeight = 46;
+  const titleBottom = titleTop + (titleLines.length - 1) * titleLineHeight;
+  const stakeLabelY = titleBottom + 56;
+  const stakeY = stakeLabelY + 66;
+
+  const fontFaceMarkup = ogFontDataUri
+    ? `
+        <style>
+          @font-face {
+            font-family: "BantahOG";
+            src: url("${ogFontDataUri}") format("truetype");
+            font-weight: 100 900;
+            font-style: normal;
+          }
+        </style>
+      `
+    : "";
+
+  return `
+    <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        ${fontFaceMarkup}
+        <linearGradient id="canvasBg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#030306" />
+          <stop offset="1" stop-color="#090913" />
+        </linearGradient>
+        <linearGradient id="cardBg" x1="30" y1="30" x2="1170" y2="600" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#06070B" />
+          <stop offset="0.42" stop-color="#0D0A18" />
+          <stop offset="1" stop-color="#171129" />
+        </linearGradient>
+        <radialGradient id="purpleGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(894 182) rotate(118.245) scale(474 502)">
+          <stop stop-color="#7440FF" stop-opacity="0.44" />
+          <stop offset="1" stop-color="#7440FF" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="limeGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1014 548) rotate(-165.473) scale(300 210)">
+          <stop stop-color="#BEFF07" stop-opacity="0.24" />
+          <stop offset="1" stop-color="#BEFF07" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="stakeFill" x1="80" y1="290" x2="470" y2="394" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#D4FF62" />
+          <stop offset="0.55" stop-color="#BEFF07" />
+          <stop offset="1" stop-color="#8ED000" />
+        </linearGradient>
+        <clipPath id="cardClip">
+          <rect x="30" y="30" width="1140" height="570" rx="40" />
+        </clipPath>
+      </defs>
+
+      <rect width="1200" height="630" fill="url(#canvasBg)" />
+      <g clip-path="url(#cardClip)">
+        <rect x="30" y="30" width="1140" height="570" rx="40" fill="url(#cardBg)" />
+        <rect x="30" y="30" width="1140" height="570" rx="40" fill="url(#purpleGlow)" />
+        <rect x="30" y="30" width="1140" height="570" rx="40" fill="url(#limeGlow)" />
+
+        <rect x="${1092 - statusWidth}" y="54" width="${statusWidth}" height="42" rx="21" fill="#11131A" stroke="#A487FF" stroke-opacity="0.30" />
+        <text x="${1092 - statusWidth / 2}" y="81" fill="#FFFFFF" font-family="${OG_FONT_STACK}" font-size="18" font-weight="800" text-anchor="middle">${escapeXml(statusLabel)}</text>
+
+        ${titleLines
+          .map(
+            (line, index) => `
+          <text x="80" y="${titleTop + index * titleLineHeight}" fill="#FFFFFF" font-family="${OG_FONT_STACK}" font-size="44" font-weight="800">${escapeXml(line)}</text>`,
+          )
+          .join("")}
+
+        <text x="80" y="${stakeLabelY}" fill="#9891B7" font-family="${OG_FONT_STACK}" font-size="18" font-weight="800" letter-spacing="1.5">STAKE</text>
+        <text x="80" y="${stakeY}" fill="url(#stakeFill)" font-family="${OG_FONT_STACK}" font-size="${stakeFontSize}" font-weight="900">${escapeXml(stakeText)}</text>
+      </g>
+    </svg>
+  `;
+}
+
 async function generateEventSvg(event: any, baseUrl?: string): Promise<string> {
   const ogFontDataUri = await getOgFontDataUri(baseUrl);
   const title = escapeXml(String(event.title || "Bantah event"));
@@ -716,6 +804,9 @@ export function setupOGImageRoutes(app: any, storage: IStorage) {
   app.get("/api/og/challenges/:id.png", async (req: Request, res: Response) => {
     try {
       const challengeId = Number(req.params.id);
+      if (Number.isNaN(challengeId)) {
+        return res.status(400).json({ error: "Invalid challenge ID" });
+      }
       const challenge = await storage.getChallengeById(challengeId);
       if (!challenge) {
         return res.status(404).json({ error: "Challenge not found" });
@@ -734,9 +825,34 @@ export function setupOGImageRoutes(app: any, storage: IStorage) {
     }
   });
 
+  app.get("/api/og/bota-challenges/:code.png", async (req: Request, res: Response) => {
+    try {
+      const challengeCode = req.params.code;
+      const challenge = await getBotaAgentChallengeByCode({ challengeCode });
+      if (!challenge) {
+        return res.status(404).json({ error: "BOTA Challenge not found" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const svg = await buildBotaChallengeCardSvg(challenge, baseUrl);
+      const image = await renderSvgImage(svg);
+
+      res.setHeader("Content-Type", image.contentType);
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=60, stale-while-revalidate=300");
+      res.send(image.buffer);
+    } catch (error) {
+      console.error("Error generating BOTA challenge OG image:", error);
+      res.status(500).json({ error: "Failed to generate image" });
+    }
+  });
+
   app.get("/api/og/challenge/:id", async (req: Request, res: Response) => {
     req.url = `/api/og/challenges/${req.params.id}.png`;
     res.redirect(302, `/api/og/challenges/${req.params.id}.png`);
+  });
+
+  app.get("/api/og/bota-challenge/:code", async (req: Request, res: Response) => {
+    res.redirect(302, `/api/og/bota-challenges/${req.params.code}.png`);
   });
 
   app.get("/api/og/event/:id", async (req: Request, res: Response) => {

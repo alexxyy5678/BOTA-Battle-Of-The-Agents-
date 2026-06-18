@@ -31,6 +31,15 @@ import {
   parseBantahBroTelegramStartButton,
   parseBantahBroTelegramTokenCommand,
 } from "./bantahBro/telegramSupport";
+import { db } from "./db";
+import { users } from "../shared/schema";
+import { eq } from "drizzle-orm";
+import {
+  createBotaAgentChallenge,
+  acceptBotaAgentChallenge,
+  declineBotaAgentChallenge,
+  getBotaAgentChallengeByCode,
+} from "./bantahBro/botaAgentChallengeService";
 
 type TelegramCallback = (content: Content) => Promise<unknown>;
 
@@ -704,6 +713,151 @@ async function handleMarketForAlert(
   }
 }
 
+
+async function handleChallengeCommand(
+  payload: TelegramMessageEventPayload,
+  text: string,
+  telegramId: string | null,
+) {
+  if (!telegramId) {
+    await sendTelegramText(payload, "🔐 Link your Telegram account to Bantah first before challenging someone.");
+    return true;
+  }
+
+  const user = await storage.getUserByTelegramId(telegramId);
+  if (!user?.id) {
+    await sendTelegramText(payload, "🔐 I could not find a linked Bantah account for this Telegram user.");
+    return true;
+  }
+
+  // Parse: /challenge @username 100
+  const parts = text.split(/\s+/);
+  const targetUsernameRaw = parts[1];
+  const amountRaw = parts[2];
+
+  if (!targetUsernameRaw || !targetUsernameRaw.startsWith("@") || !amountRaw) {
+    await sendTelegramText(payload, "🎯 Usage:\n/challenge @username [amount]\nExample: /challenge @vitalik 100");
+    return true;
+  }
+
+  const targetUsername = targetUsernameRaw.substring(1);
+  const amount = Number(amountRaw);
+
+  if (isNaN(amount) || amount <= 0) {
+    await sendTelegramText(payload, "⚠️ Invalid stake amount.");
+    return true;
+  }
+
+  // Find opponent by telegram username
+  const opponentRes = await db.select().from(users).where(eq(users.telegramUsername, targetUsername)).limit(1);
+  const opponentUser = opponentRes[0];
+
+  if (user.id === opponentUser?.id) {
+    await sendTelegramText(payload, "⚠️ You cannot challenge yourself.");
+    return true;
+  }
+
+  if (!opponentUser) {
+    await sendTelegramText(payload, "⚠️ User not found. They must have linked their Telegram to Bantah first.");
+    return true;
+  }
+
+  const opponentId = opponentUser.id;
+
+  try {
+    await sendTelegramText(
+      payload,
+      `⚔️ You are challenging @${targetUsername} for ${amount} BC.\n\nOpen Bantah to finalize your agent selection and confirm the challenge!`,
+      [[urlButton("🚀 Finalize Challenge", `${buildBantahBroAgentUrl()}?section=challenge&opponent=${opponentId}&amount=${amount}&source=telegram`) as TelegramInlineButton]]
+    );
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? `⚠️ Challenge failed.\n\n${error.message}` : "⚠️ Challenge failed.";
+    await sendTelegramText(payload, message);
+    return true;
+  }
+}
+
+async function handleAcceptCommand(
+  payload: TelegramMessageEventPayload,
+  text: string,
+  telegramId: string | null,
+) {
+  if (!telegramId) {
+    await sendTelegramText(payload, "🔐 Link your Telegram account to Bantah first.");
+    return true;
+  }
+
+  const user = await storage.getUserByTelegramId(telegramId);
+  if (!user?.id) {
+    await sendTelegramText(payload, "🔐 I could not find a linked Bantah account.");
+    return true;
+  }
+
+  // Normally /accept <challenge_code>
+  const parts = text.split(/\s+/);
+  const challengeCode = parts[1];
+
+  if (!challengeCode) {
+    await sendTelegramText(payload, "🎯 Usage: /accept [challenge_code]");
+    return true;
+  }
+
+  try {
+    const challenge = await acceptBotaAgentChallenge({
+      challengeCode,
+      userId: user.id,
+      scheduledDelayMinutes: 5,
+    });
+    
+    await sendTelegramText(payload, `⚔️ Challenge accepted! Battle starts soon.`);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? `⚠️ Accept failed.\n\n${error.message}` : "⚠️ Accept failed.";
+    await sendTelegramText(payload, message);
+    return true;
+  }
+}
+
+async function handleDeclineCommand(
+  payload: TelegramMessageEventPayload,
+  text: string,
+  telegramId: string | null,
+) {
+  if (!telegramId) {
+    await sendTelegramText(payload, "🔐 Link your Telegram account to Bantah first.");
+    return true;
+  }
+
+  const user = await storage.getUserByTelegramId(telegramId);
+  if (!user?.id) {
+    await sendTelegramText(payload, "🔐 I could not find a linked Bantah account.");
+    return true;
+  }
+
+  const parts = text.split(/\s+/);
+  const challengeCode = parts[1];
+
+  if (!challengeCode) {
+    await sendTelegramText(payload, "🎯 Usage: /decline [challenge_code]");
+    return true;
+  }
+
+  try {
+    const challenge = await declineBotaAgentChallenge({
+      challengeCode,
+      userId: user.id,
+    });
+    
+    await sendTelegramText(payload, `❌ Challenge declined.`);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? `⚠️ Decline failed.\n\n${error.message}` : "⚠️ Decline failed.";
+    await sendTelegramText(payload, message);
+    return true;
+  }
+}
+
 export async function handleBantahBroTelegramCommandEvent(
   payload: TelegramMessageEventPayload,
 ) {
@@ -798,6 +952,18 @@ export async function handleBantahBroTelegramCommandEvent(
 
   if (matchesSlashCommand(text, "battle") || matchesSlashCommand(text, "battles")) {
     return handleSharedPowerCommand(payload, text, telegramId);
+  }
+
+  if (matchesSlashCommand(text, "challenge")) {
+    return handleChallengeCommand(payload, text, telegramId);
+  }
+
+  if (matchesSlashCommand(text, "accept")) {
+    return handleAcceptCommand(payload, text, telegramId);
+  }
+
+  if (matchesSlashCommand(text, "decline")) {
+    return handleDeclineCommand(payload, text, telegramId);
   }
 
   if (

@@ -401,6 +401,7 @@ export default function ImportPage() {
       setImportedProfile(result.profile)
       setCreateStatus('success')
       queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/fighter-profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/profile'] })
       queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agents-directory'] })
       queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/profile'] })
       toast({
@@ -441,6 +442,7 @@ export default function ImportPage() {
     onSuccess: (result) => {
       setImportedProfile(result.profile)
       queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/fighter-profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/profile'] })
       queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/agents-directory'] })
       queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/profile'] })
       toast({
@@ -557,7 +559,7 @@ export default function ImportPage() {
                   type="button"
                   onClick={handleScan}
                   disabled={authLoading || (isAuthenticated && !ownScanWallet)}
-                  className="inline-flex items-center justify-center gap-2 rounded bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded bg-primary px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {scanQuery.isFetching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
                   Scan Assets
@@ -739,7 +741,7 @@ export default function ImportPage() {
                         onClick={() => setCreateAutoAssign((current) => !current)}
                         className={`rounded-full px-3 py-1 text-[10px] font-black transition ${
                           createAutoAssign
-                            ? 'bg-primary text-primary-foreground'
+                            ? 'bg-primary text-white'
                             : 'border border-border bg-background text-foreground hover:border-primary/50'
                         }`}
                       >
@@ -976,7 +978,7 @@ export default function ImportPage() {
                 type="button"
                 onClick={handleImport}
                 disabled={authLoading || importMutation.isPending || !selectedAsset}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded bg-primary px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {importMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <ImportIcon size={14} />}
                 {submitLabel}
@@ -1018,7 +1020,7 @@ export default function ImportPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <a
                     href={botaAppHref('/bota?section=battles')}
-                    className="inline-flex items-center gap-1 rounded bg-primary px-2.5 py-1.5 text-xs font-black text-primary-foreground hover:bg-primary/90"
+                    className="inline-flex items-center gap-1 rounded bg-primary px-2.5 py-1.5 text-xs font-black text-white hover:bg-primary/90"
                   >
                     Enter Arena <Swords size={12} />
                   </a>
@@ -1075,55 +1077,93 @@ export default function ImportPage() {
       </div>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-sm p-4">
-          <DialogHeader>
-            <DialogTitle className="text-base">
-              {createStatus === 'pending'
-                ? 'Deploying…'
-                : createStatus === 'success'
-                ? 'Queued'
-                : 'Create fighter'}
-            </DialogTitle>
-            <DialogDescription className="text-sm">
-              {createStatus === 'pending'
-                ? 'Creating your fighter and joining the next queue.'
-                : createStatus === 'success'
-                ? `${importedProfile?.displayName || 'Fighter'} is queued.`
-                : 'Close to continue and review your queue.'}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-sm overflow-hidden p-0 border-border/50 bg-background/95 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+          <div className="relative p-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-50" />
+            
+            <DialogHeader className="relative">
+              <DialogTitle className="flex items-center gap-2 text-xl font-black tracking-tight text-foreground">
+                {createStatus === 'pending' ? (
+                  <>
+                    <Bot size={24} className="text-primary animate-pulse" />
+                    Deploying Fighter...
+                  </>
+                ) : createStatus === 'success' ? (
+                  <>
+                    <CheckCircle2 size={24} className="text-green-500 animate-[bounce_0.5s_ease-out]" />
+                    Deployment Success
+                  </>
+                ) : (
+                  <>
+                    <Swords size={24} className="text-primary" />
+                    Create Fighter
+                  </>
+                )}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground pt-1">
+                {createStatus === 'pending'
+                  ? 'Generating persona, compiling loadout, and registering identity for the Arena...'
+                  : createStatus === 'success'
+                  ? 'Your fighter has successfully been registered and is queued for the next Arena round.'
+                  : 'Review your fighter deployment status.'}
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="mt-3 space-y-3">
-            {createStatus === 'pending' ? (
-              <div className="flex items-center justify-center gap-2 rounded border border-border bg-card p-4 text-sm font-black text-muted-foreground">
-                <Loader2 size={18} className="animate-spin" />
-                <span>Working…</span>
-              </div>
-            ) : createStatus === 'success' && importedProfile ? (
-              <div className="rounded border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
-                <div className="font-black">{importedProfile.displayName}</div>
-                <div className="mt-1 text-xs text-muted-foreground">Queued for the next Arena round.</div>
-              </div>
-            ) : (
-              <div className="rounded border border-border bg-background p-3 text-sm text-muted-foreground">
-                Your fighter will be generated and queued on submit.
-              </div>
-            )}
+            <div className="relative mt-6 space-y-4">
+              {createStatus === 'pending' ? (
+                <div className="flex flex-col items-center justify-center py-6">
+                  <div className="relative flex items-center justify-center size-20">
+                    <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                    <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                    <Bot size={32} className="text-primary" />
+                  </div>
+                  <div className="mt-4 text-xs font-bold uppercase tracking-widest text-primary animate-pulse">
+                    Initializing Core...
+                  </div>
+                </div>
+              ) : createStatus === 'success' && importedProfile ? (
+                <div className="group relative overflow-hidden rounded-xl border border-primary/30 bg-card p-1 shadow-inner transition-all hover:border-primary/60 hover:shadow-[0_0_20px_rgba(var(--primary),0.15)]">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                  <div className="relative flex items-center gap-4 rounded-lg bg-background p-3">
+                    <img 
+                      src={importedProfile.avatarUrl || botaCharacterAvatar(importedProfile.id, importedProfile.origin || 'manual')} 
+                      alt="Fighter Avatar" 
+                      className="size-14 rounded-full border-2 border-primary/50 object-cover shadow-md"
+                    />
+                    <div>
+                      <div className="text-lg font-black tracking-tight text-foreground">{importedProfile.displayName}</div>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                        <span className="flex size-2 rounded-full bg-green-500 animate-pulse" />
+                        Queued for Arena
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <DialogFooter className="relative mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              {createStatus !== 'pending' && (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsCreateDialogOpen(false)} 
+                  className="w-full sm:w-auto font-bold border-border/50 hover:bg-muted/50"
+                >
+                  {createStatus === 'success' ? 'View Queue' : 'Close'}
+                </Button>
+              )}
+              {createStatus === 'success' && importedProfile ? (
+                <a
+                  href={botaAppHref('/bota?section=battles')}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-black text-white shadow-[0_0_15px_rgba(var(--primary),0.4)] transition-all hover:bg-primary/90 hover:shadow-[0_0_25px_rgba(var(--primary),0.6)] sm:w-auto hover:scale-105 active:scale-95"
+                >
+                  <Gamepad2 size={16} />
+                  Enter Arena
+                </a>
+              ) : null}
+            </DialogFooter>
           </div>
-
-          <DialogFooter className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" onClick={() => setIsCreateDialogOpen(false)} className="w-full sm:w-auto">
-              Close
-            </Button>
-            {createStatus === 'success' && importedProfile ? (
-              <a
-                href={botaAppHref('/bota?section=battles')}
-                className="inline-flex w-full items-center justify-center rounded bg-primary px-3 py-2 text-xs font-black text-primary-foreground hover:bg-primary/90 sm:w-auto"
-              >
-                Enter Arena
-              </a>
-            ) : null}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

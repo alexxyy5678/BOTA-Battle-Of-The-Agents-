@@ -1395,7 +1395,7 @@ async function buildBattleFighterPool(requestedBattles: number) {
 }
 
 async function buildFeed(limit: number): Promise<BantahBroAgentBattlesFeed> {
-  const requestedBattles = clamp(Math.round(limit || 50), 1, 50);
+  const requestedBattles = clamp(Math.round(limit || 20), 1, 20);
   const now = new Date();
   pruneExpiredBattleSnapshots(now);
   lockedRoundBattleSnapshots = lockedRoundBattleSnapshots.filter((battle) =>
@@ -1435,7 +1435,7 @@ async function buildFeed(limit: number): Promise<BantahBroAgentBattlesFeed> {
 
 export async function getLiveBantahBroAgentBattles(limit = 3, options: LiveAgentBattlesOptions = {}) {
   const now = Date.now();
-  const requestedLimit = clamp(Math.round(limit || 50), 1, 50);
+  const requestedLimit = clamp(Math.round(limit || 20), 1, 20);
   const hydrateLiveStats = options.hydrateLiveStats !== false;
   const trimFeed = (feed: BantahBroAgentBattlesFeed): BantahBroAgentBattlesFeed => ({
     ...feed,
@@ -1511,7 +1511,7 @@ export async function getLiveBantahBroAgentBattles(limit = 3, options: LiveAgent
 }
 
 export async function getUpcomingBotaArenaQueue(limit = 5) {
-  const requestedBattles = clamp(Math.round(limit || 50), 1, 50);
+  const requestedBattles = clamp(Math.round(limit || 20), 1, 20);
   const now = new Date();
   const battleWindowMs = getBattleWindowMs();
   const nextRoundBucket = Math.floor(now.getTime() / battleWindowMs) + 1;

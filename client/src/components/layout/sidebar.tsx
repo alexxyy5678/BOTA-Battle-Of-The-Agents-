@@ -1,12 +1,14 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AppSection } from '@/app/page'
 import type { AgentBattleFeed } from '@/types/agentBattle'
 import { botaCharacterAlt, botaFighterProfileArt } from '@/lib/botaCharacterLayer'
 import { getFighterSourceMeta } from '@/lib/bantahbro/fighterIdentity'
 import type { BotaFighterProfile } from '@shared/botaFighterProfile'
+import { useAuth } from '@/hooks/useAuth'
+import { LogOut } from 'lucide-react'
 
 interface FighterProfilesFeed {
   profiles: BotaFighterProfile[]
@@ -21,8 +23,9 @@ interface SidebarProps {
 
 const menuItems: { icon: string; label: string; section: AppSection }[] = [
   { icon: '🏟️', label: 'ARENA (A2A)', section: 'battles' },
+  { icon: '🎯', label: 'Challenge', section: 'challenge' },
   { icon: '🤖', label: 'Agents', section: 'agents' },
-  { icon: '⬇️', label: 'Create Fighter', section: 'import' },
+  { icon: '⚔️', label: 'Create Fighter', section: 'import' },
   { icon: '🛒', label: 'Marketplace', section: 'marketplace' },
   { icon: '🏆', label: 'Leaderboard', section: 'leaderboard' },
   { icon: '🌐', label: 'Communities', section: 'communities' },
@@ -82,6 +85,19 @@ export default function Sidebar({
     refetchInterval: 60_000,
   })
   
+  const { isAuthenticated, logout } = useAuth()
+  const queryClient = useQueryClient()
+
+  const handlePrefetch = (section: AppSection) => {
+    if (section === 'battles') {
+      queryClient.prefetchQuery({ queryKey: ['/api/bantahbro/agent-battles/live', { limit: '6', liveStats: '0' }] })
+    } else if (section === 'agents') {
+      queryClient.prefetchQuery({ queryKey: ['/api/bantahbro/agents-directory'] })
+    } else if (section === 'challenge') {
+      queryClient.prefetchQuery({ queryKey: ['/api/bantahbro/agent-challenges', { limit: '20' }] })
+    }
+  }
+  
   const totalAgentsCount = fighterFeed?.profiles?.length || 0
 
   const liveBattleCount = battleFeed?.battles?.length ?? 0
@@ -129,6 +145,7 @@ export default function Sidebar({
                 onClick={() => {
                   handleClick(item.section)
                 }}
+                onMouseEnter={() => handlePrefetch(item.section)}
                 className={`w-full text-left text-sm py-1.5 px-3 transition flex items-center gap-2 ${
                   isActive
                     ? 'bg-primary/20 text-primary font-bold border-r-2 border-primary'
@@ -227,11 +244,15 @@ export default function Sidebar({
       </div>
 
       <div className="border-t border-border p-2 text-center">
-        <div className="text-xs font-bold text-primary mb-2">Battle Of The Agent</div>
-        <div className="flex items-center justify-center gap-1.5">
-          <img src="/assets/bota-bantah-icon.png" alt="BOTA" width={18} height={18} className="rounded bg-[#0f101c] object-contain" />
-          <span className="text-xs font-bold text-primary">BOTA</span>
-        </div>
+        {isAuthenticated && (
+          <button
+            onClick={() => logout()}
+            className="w-full mb-3 text-xs font-bold text-muted-foreground hover:text-foreground py-1.5 px-3 rounded bg-muted/30 hover:bg-muted/60 transition flex items-center justify-center gap-2"
+          >
+            <LogOut size={12} />
+            Log Out
+          </button>
+        )}
       </div>
     </div>
   )

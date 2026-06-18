@@ -163,9 +163,11 @@ function buildCommunitySummaries(profiles: BotaFighterProfile[]) {
 
   return COMMUNITY_DEFS.map((definition) => {
     const agents = [...(grouped.get(definition.key) || [])].sort((left, right) => {
-      const rankDiff = (left.rank || 9999) - (right.rank || 9999)
-      if (rankDiff !== 0) return rankDiff
-      return right.wins - left.wins
+      const winsDiff = right.wins - left.wins
+      if (winsDiff !== 0) return winsDiff
+      const scoreDiff = right.score - left.score
+      if (scoreDiff !== 0) return scoreDiff
+      return (left.rank || 9999) - (right.rank || 9999)
     })
     const wins = agents.reduce((total, agent) => total + agent.wins, 0)
     const losses = agents.reduce((total, agent) => total + agent.losses, 0)
@@ -404,5 +406,5 @@ export default function CommunitiesPage({ embedded = false }: { embedded?: boole
     </div>
   )
 
-  return embedded ? content : <main>{content}</main>
+  return embedded ? content : <main className="flex-1 flex flex-col min-h-0 overflow-hidden">{content}</main>
 }

@@ -209,6 +209,7 @@ export default function ProfilePage() {
   const [editingFighterId, setEditingFighterId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null)
+  const [packToOpen, setPackToOpen] = useState<string | null>(null)
 
   const { data: rewardsData } = useQuery<RewardsProfileResponse>({
     queryKey: ['/api/bantahbro/rewards', 'profile'],
@@ -223,22 +224,6 @@ export default function ProfilePage() {
     enabled: isAuthenticated,
     staleTime: 5_000,
     refetchInterval: 15_000,
-  })
-  const { data: kothData } = useQuery<{ participants: any[] }>({
-    queryKey: ['/api/bantahbro/koth/participants'],
-    queryFn: () => apiRequest('GET', '/api/bantahbro/koth/participants'),
-    enabled: isAuthenticated,
-    refetchInterval: 5_000,
-  })
-  const toggleKothMutation = useMutation({
-    mutationFn: async (agentId: string) => apiRequest('POST', `/api/bantahbro/koth/agents/${encodeURIComponent(agentId)}/toggle-auto`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/bantahbro/koth/participants'] })
-      toast({ title: 'Success', description: 'KOTH auto-join preference updated.' })
-    },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' })
-    }
   })
   const { data: onchainConfig } = useQuery<OnchainRuntimeConfig>({
     queryKey: ['/api/onchain/config'],
@@ -675,31 +660,12 @@ export default function ProfilePage() {
                         <div className="mt-0.5 truncate text-xs text-muted-foreground">
                           {fighter.badgeLabel || fighter.origin} / #{fighter.rank || '-'}
                         </div>
-                        {kothData?.participants?.find(p => p.agentId === fighter.agentId)?.status === 'queued' && (
-                          <div className="mt-1 inline-flex items-center gap-1 rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-black text-primary">
-                            🛡️ Queued for KOTH
-                          </div>
-                        )}
-                        {kothData?.participants?.find(p => p.agentId === fighter.agentId)?.status === 'live' && (
-                          <div className="mt-1 inline-flex items-center gap-1 rounded bg-green-500/20 px-1.5 py-0.5 text-[10px] font-black text-green-500">
-                            ⚔️ Live in KOTH
-                          </div>
-                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1 text-right text-xs">
                         <div>
                           <div className="font-black text-foreground">{fighter.wins}W-{fighter.losses}L</div>
                           <div className="font-mono text-yellow-300">{formatNumber(fighter.bantCreditsEarned)} BC</div>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant={kothData?.participants?.find(p => p.agentId === fighter.agentId)?.autoJoin ? "default" : "outline"} 
-                          className="h-6 text-[10px] px-2 uppercase mt-1 mb-1"
-                          onClick={() => toggleKothMutation.mutate(fighter.agentId)}
-                          disabled={toggleKothMutation.isPending}
-                        >
-                          {kothData?.participants?.find(p => p.agentId === fighter.agentId)?.autoJoin ? '✅ Auto-Join KOTH' : 'Auto-Join KOTH'}
-                        </Button>
                         <Button 
                           size="sm" 
                           variant="outline" 

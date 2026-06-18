@@ -20,6 +20,8 @@ import { PrivyProvider } from '@privy-io/react-auth';
 import type { PrivyClientConfig } from '@privy-io/react-auth';
 import { privyConfig } from './lib/privyConfig';
 import type { AppSection } from '@/app/page';
+import { SplashLoading } from '@/components/SplashLoading';
+import { Loader2 } from 'lucide-react';
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Landing = lazy(() => import("@/pages/Landing"));
@@ -166,7 +168,11 @@ function isBantahBroPath(pathname: string) {
 }
 
 function DefaultRouteFallback() {
-  return null;
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center p-12 opacity-50 animate-in fade-in duration-500 delay-300 fill-mode-backwards">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
 }
 
 function AdminEngineRedirect() {
@@ -342,7 +348,7 @@ function AppRouter() {
 
   // Keep BOTA fast: render its public shell while auth finishes in the background.
   if (isLoading && !isBantahBroRoute) {
-    return null;
+    return <SplashLoading />;
   }
 
   return (

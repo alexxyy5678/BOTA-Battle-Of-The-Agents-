@@ -3,6 +3,7 @@
 import { lazy, Suspense, useState, useEffect, type ReactNode } from 'react';
 import Sidebar from '@/components/layout/sidebar';
 import TopBar from '@/components/layout/topbar';
+import { BantahErrorBoundary } from '@/components/BantahErrorBoundary';
 import type { MainContentTopTab } from '@/components/layout/main-content';
 import MobileBottomNav from '@/components/layout/mobile-bottom-nav';
 import { botaAppHref } from '@/lib/botaUrl';
@@ -88,7 +89,6 @@ export default function Home({
   const [predictionBattleId] = useState(initialPredictionBattleId);
   const [activeTool, setActiveTool] = useState<BantahTool>('assistant');
   const [pendingWalletAction, setPendingWalletAction] = useState<BantahBroWalletAction | null>(null);
-  const [kothSubView, setKothSubView] = useState<'koth' | 'arena'>('koth');
 
   const normalizeSection = (section: AppSection): AppSection =>
     section === 'dashboard' ? 'challenge' : section === 'launcher' ? 'import' : section;
@@ -352,9 +352,11 @@ export default function Home({
             onToolSelect={setActiveTool}
           />
         </div>
-        <Suspense fallback={<BotaSectionFallback />}>
-          {renderPage()}
-        </Suspense>
+        <BantahErrorBoundary>
+          <Suspense fallback={<BotaSectionFallback />}>
+            {renderPage()}
+          </Suspense>
+        </BantahErrorBoundary>
       </div>
 
       <MobileBottomNav activeSection={activeSection} onNavigate={handleNavigate} />

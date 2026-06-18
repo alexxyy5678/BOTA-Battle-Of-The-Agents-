@@ -227,7 +227,7 @@ function scoreLabel(entry: LeaderboardEntry, sortMode: SortMode) {
 }
 
 export default function LeaderboardPage() {
-  const [sortMode, setSortMode] = useState<SortMode>('earnings');
+  const [sortMode, setSortMode] = useState<SortMode>('wins');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const { data, isLoading } = useQuery<FighterProfilesFeed>({
     queryKey: ['/api/bantahbro/fighter-profiles', { limit: '100', refreshLive: 'true' }],

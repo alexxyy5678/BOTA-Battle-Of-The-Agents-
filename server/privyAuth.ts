@@ -125,6 +125,29 @@ async function upsertPrivyUser(verifiedClaims: any) {
         username,
         profileImageUrl: verifiedClaims.picture,
       });
+
+      // Award signup bonus for new Privy users
+      const { BANTCREDIT_SIGNUP_REWARD } = await import('@shared/bantCredit');
+      await storage.updateUserPoints(userId, BANTCREDIT_SIGNUP_REWARD);
+      
+      await storage.createNotification({
+        userId: userId,
+        type: 'welcome_bonus',
+        title: 'Welcome to Bantah',
+        message: `You received ${BANTCREDIT_SIGNUP_REWARD} BantCredit for joining! Start betting and challenging friends to earn more.`,
+        data: { points: BANTCREDIT_SIGNUP_REWARD, type: 'welcome_bonus' },
+        channels: ['in_app_feed', 'push_notification'],
+        fomoLevel: 'medium',
+        priority: 2,
+      } as any);
+
+      await storage.createTransaction({
+        userId: userId,
+        type: 'signup_bonus',
+        amount: BANTCREDIT_SIGNUP_REWARD.toString(),
+        description: 'Welcome bonus for new user registration via Wallet',
+        status: 'completed',
+      });
     }
 
     if (verifiedClaims.linkedAccounts) {

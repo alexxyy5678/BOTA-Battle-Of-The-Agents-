@@ -6,6 +6,8 @@ import {
   getLiveBantahBroAgentBattles,
   type BantahBroAgentBattle,
 } from "./agentBattleService";
+import { listBotaAgentChallenges, updateBotaAgentChallengeMetadata } from "./botaAgentChallengeService";
+
 
 type BroadcastConfig = {
   enabled: boolean;
@@ -209,20 +211,92 @@ export async function broadcastBantahBroLiveBattlesOnce() {
   return { sent, skipped, reason: sent > 0 ? "broadcasted" : "no-new-battles" };
 }
 
+export async function broadcastBotaAgentChallengesOnce() {
+  const config = loadConfig();
+  if (!config.enabled) {
+    return { sent: 0, skipped: 0, reason: "disabled" };
+  }
+
+  const bot = getBantahBroTelegramBot();
+  if (!bot) {
+    return { sent: 0, skipped: 0, reason: "bot-not-configured" };
+  }
+
+  // Fetch pending, scheduled, live, cancelled, expired challenges
+  const recentChallenges = await listBotaAgentChallenges({ limit: 20 });
+  const state = await loadState();
+  let sent = 0;
+  let skipped = 0;
+  let stateChanged = false;
+
+  for (const challenge of recentChallenges.challenges) {
+    // Only broadcast ones that need to be broadcasted
+    // The key should include the status so we broadcast state changes
+    const key = `telegram-challenge-${challenge.id}-${challenge.status}`;
+    if (state.sent[key]) {
+      skipped += 1;
+      continue;
+    }
+
+    const didSend = await bot.broadcastBotaAgentChallenge(challenge, {
+      broadcastId: key,
+    });
+
+    if (didSend) {
+      state.sent[key] = new Date().toISOString();
+      stateChanged = true;
+      sent += 1;
+      
+      // Update metadata to indicate we've broadcasted it
+      try {
+         await updateBotaAgentChallengeMetadata({
+           challengeCode: challenge.challengeCode,
+           metadata: {
+             lastBroadcastedStatus: challenge.status,
+             lastBroadcastedAt: new Date().toISOString()
+           }
+         });
+      } catch(e) {
+         // ignore
+      }
+    } else {
+      skipped += 1;
+    }
+  }
+
+  if (stateChanged) {
+    await saveState(state);
+  }
+
+  return { sent, skipped, reason: sent > 0 ? "broadcasted" : "no-new-challenges" };
+}
+
 async function runBroadcastLoop() {
   if (runPromise) return runPromise;
-  runPromise = broadcastBantahBroLiveBattlesOnce()
-    .then((result) => {
-      if (result.sent > 0) {
-        console.log(`[OK] BantahBro Telegram battle broadcasts sent: ${result.sent}`);
-      }
-    })
-    .catch((error) => {
-      console.error("[WARN] BantahBro Telegram battle broadcast failed:", error);
-    })
-    .finally(() => {
-      runPromise = null;
-    });
+  runPromise = Promise.all([
+    broadcastBantahBroLiveBattlesOnce()
+      .then((result) => {
+        if (result.sent > 0) {
+          console.log(`[OK] BantahBro Telegram battle broadcasts sent: ${result.sent}`);
+        }
+      })
+      .catch((error) => {
+        console.error("[WARN] BantahBro Telegram battle broadcast failed:", error);
+      }),
+    broadcastBotaAgentChallengesOnce()
+      .then((result) => {
+        if (result.sent > 0) {
+          console.log(`[OK] BOTA Telegram challenge broadcasts sent: ${result.sent}`);
+        }
+      })
+      .catch((error) => {
+        console.error("[WARN] BOTA Telegram challenge broadcast failed:", error);
+      })
+  ])
+  .then(() => {})
+  .finally(() => {
+    runPromise = null;
+  });
   return runPromise;
 }
 

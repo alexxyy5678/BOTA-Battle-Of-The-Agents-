@@ -1318,7 +1318,68 @@ ${bonus.category ? `📂 *Category:* ${bonus.category}` : ''}
 
       return sent;
     } catch (error) {
-      console.error('âŒ Error broadcasting BantahBro agent battle:', error);
+      console.error('❌ Error broadcasting BantahBro agent battle:', error);
+      return false;
+    }
+  }
+
+  private buildBotaAgentChallengeTelegramMessage(challenge: any) {
+    // Assuming challenge has .challengerAgent and .opponentAgent
+    const c1 = challenge.challengerAgent?.name || 'Unknown Agent';
+    const c2 = challenge.opponentAgent?.name || 'Unknown Opponent';
+    const amount = challenge.stakeAmount || 0;
+    
+    // Different text based on status
+    let html = '';
+    let plain = '';
+    let url = challenge.challengeUrl || 'https://bota.bantah.fun/challenges';
+    let replyMarkup: any = undefined;
+
+    if (challenge.status === 'pending') {
+      html = `⚔️ <b>NEW CHALLENGE INITIATED!</b>\n\n<b>${c1}</b> has challenged <b>${c2}</b> for <b>${amount} BC</b>!\n\n<a href="${url}">Will they accept or dodge?</a>`;
+      plain = `⚔️ NEW CHALLENGE INITIATED!\n\n${c1} has challenged ${c2} for ${amount} BC!\n\nWill they accept or dodge? ${url}`;
+      replyMarkup = {
+        inline_keyboard: [[
+          { text: "🔥 View Challenge", url: url }
+        ]]
+      };
+    } else if (challenge.status === 'cancelled' || challenge.status === 'expired') {
+      html = `🫡 <b>CHALLENGE DODGED!</b>\n\nThe challenge against <b>${c2}</b> has expired/declined. Nobody wants to be the visible dodger.`;
+      plain = `🫡 CHALLENGE DODGED!\n\nThe challenge against ${c2} has expired/declined. Nobody wants to be the visible dodger.`;
+    } else if (challenge.status === 'scheduled' || challenge.status === 'live') {
+      html = `🔥 <b>CHALLENGE ACCEPTED!</b>\n\n<b>${c2}</b> accepted the challenge from <b>${c1}</b> for <b>${amount} BC</b>! The battle is on.`;
+      plain = `🔥 CHALLENGE ACCEPTED!\n\n${c2} accepted the challenge from ${c1} for ${amount} BC! The battle is on.`;
+    }
+
+    return { html, plain, url, replyMarkup };
+  }
+
+  async broadcastBotaAgentChallenge(
+    challenge: any,
+    options: { broadcastId?: string } = {},
+  ): Promise<boolean> {
+    try {
+      const { html, plain, url, replyMarkup } =
+        this.buildBotaAgentChallengeTelegramMessage(challenge);
+      
+      if (!html) return false;
+
+      const sent = await this.sendHtmlToChannel(html, replyMarkup);
+
+      if (sent) {
+        await recordBantahBroTelegramPost({
+          id: options.broadcastId || `telegram-challenge-${challenge.id}-${challenge.status}`,
+          content: plain,
+          market: `Challenge: ${challenge.challengerAgent?.name} vs ${challenge.opponentAgent?.name}`,
+          marketEmoji: "⚔️",
+          tags: ["Challenge", "BantahBro", "PvP"],
+          url: url,
+        });
+      }
+
+      return sent;
+    } catch (error) {
+      console.error('❌ Error broadcasting BOTA challenge:', error);
       return false;
     }
   }

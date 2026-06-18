@@ -1464,8 +1464,7 @@ function BattleStatsPanel({
         </div>
       )}
       {battle && (
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
-          <MobileMetricCard label="Spectators" value={formatCompactNumber(battleSpectators)} tone="text-secondary" />
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
           <MobileMetricCard label="BantCredit" value={formatCompactNumber(battleBantCredits)} tone="text-yellow-300" />
           <MobileMetricCard label="Pool" value={poolTotal > 0 ? formatTokenAmount(poolTotal, pool?.stakeCurrency) : '0'} />
         </div>
@@ -2367,10 +2366,6 @@ function MobileLiveRail({ battle, left, right }: { battle: AgentBattleFeed['batt
         </>
       ) : (
         <>
-          <div className="border-r border-white/10 px-2 py-1.5">
-            <div className="text-[9px] font-black uppercase text-muted-foreground">Spectators</div>
-            <div className="font-mono text-base font-black text-green-400">{formatCompactNumber(battle.spectators)}</div>
-          </div>
           <div className="border-r border-white/10 px-2 py-1.5">
             <div className="text-[9px] font-black uppercase text-muted-foreground">BantCredit</div>
             <div className="font-mono text-base font-black text-yellow-300">{formatCompactNumber(battle.bantCreditsEarned || battle.spectatorBantCredits || 0)}</div>
@@ -3593,10 +3588,6 @@ function BattleDetailsPanel({
       <div className="no-scrollbar mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="grid grid-cols-2 gap-1.5">
           <BattleDetailsMetric label="Match BC" value={formatCompactNumber(matchBantCredits)} tone="text-yellow-300" />
-          <BattleDetailsMetric label="Spectator BC" value={formatCompactNumber(spectatorBantCredits)} tone="text-yellow-300" />
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <BattleDetailsMetric label="Spectators" value={formatCompactNumber(battle.spectators)} tone="text-secondary" />
           <BattleDetailsMetric label="Pool" value={formatTokenAmount(pool?.totalStake, pool?.stakeCurrency)} />
         </div>
         <div className="grid grid-cols-2 gap-1.5">

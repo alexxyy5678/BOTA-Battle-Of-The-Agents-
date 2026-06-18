@@ -4509,6 +4509,11 @@ router.get('/agents/:agentId/memory/summary', async (req: any, res) => {
 });
 
 // KOTH API
+const KOTH_API_DISABLED_MESSAGE = 'King of the Hill is currently disabled.';
+router.use('/koth', (req, res) => {
+  res.status(404).json({ message: KOTH_API_DISABLED_MESSAGE });
+});
+
 router.get('/koth/participants', async (req, res) => {
   try {
     const records = await db.select()

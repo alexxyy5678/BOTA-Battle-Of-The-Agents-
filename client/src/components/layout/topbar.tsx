@@ -361,7 +361,7 @@ const PARTICIPATION_SLIDES = [
     body: 'Use YES or NO in challenge fights, or watch simulated rounds.',
     stat: 'YES / NO',
     Icon: Eye,
-    tone: 'bg-primary text-primary-foreground shadow-[0_0_18px_rgba(124,58,237,.34)]',
+    tone: 'bg-primary text-white shadow-[0_0_18px_rgba(124,58,237,.34)]',
   },
   {
     eyebrow: 'Step 3',
@@ -577,7 +577,7 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
             <button
               type="button"
               onClick={openDocs}
-              className="inline-flex h-9 flex-1 items-center justify-center rounded-xl bg-primary px-3 text-xs font-black text-primary-foreground shadow-[0_0_22px_rgba(124,58,237,.3)] transition hover:opacity-90 active:scale-[0.98]"
+              className="inline-flex h-9 flex-1 items-center justify-center rounded-xl bg-primary px-3 text-xs font-black text-white shadow-[0_0_22px_rgba(124,58,237,.3)] transition hover:opacity-90 active:scale-[0.98]"
             >
               See more
             </button>
@@ -593,7 +593,6 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
         </DialogContent>
       </Dialog>
       <div className="border-b border-border bg-card">
-        {!isBattlesPage && (
         <div className="flex items-center justify-between px-2 py-1.5 gap-2">
           <button onClick={() => setDrawerOpen(true)} className="md:hidden p-1.5 hover:bg-sidebar-accent rounded transition">
             <Menu size={20} />
@@ -644,7 +643,7 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
           <button
             type="button"
             onClick={() => setParticipationOpen(true)}
-            className="hidden md:inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary text-xs font-black text-primary-foreground transition hover:opacity-90"
+            className="hidden md:inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary text-xs font-black text-white transition hover:opacity-90"
             title="How to Participate"
             aria-label="How to Participate"
           >
@@ -719,7 +718,6 @@ export default function TopBar({ onNavigate, onOpenBattle, activeSection, active
             </button>
           </div>
         </div>
-        )}
 
         <style>{`
           @keyframes bb-battle-strip-slide {
