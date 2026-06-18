@@ -291,6 +291,39 @@ function ensIdentityStatusLabel(status: string) {
   return status || 'Ready'
 }
 
+function QueueCountdown({ startsAt, title }: { startsAt: string; title: string }) {
+  const [now, setNow] = useState(() => Date.now())
+  const { toast } = useToast()
+  const [notified, setNotified] = useState(false)
+  
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const startMs = new Date(startsAt).getTime()
+  const diff = startMs - now
+
+  useEffect(() => {
+    if (diff <= 0 && !notified) {
+      setNotified(true)
+      toast({
+        title: "Match Started!",
+        description: `Your match ${title} has begun in the Arena.`,
+      })
+    }
+  }, [diff, title, toast, notified])
+
+  if (diff <= 0) {
+    return <span className="text-green-500 animate-pulse">Live</span>
+  }
+
+  const seconds = Math.floor(diff / 1000)
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return <span className="text-primary/80 font-mono tracking-tighter">in {m}:{s.toString().padStart(2, '0')}</span>
+}
+
 export default function ImportPage() {
   const { isAuthenticated, isLoading: authLoading, login, user } = useAuth()
   const connectedWallet = walletFromPrivyUser(user)
@@ -1052,8 +1085,13 @@ export default function ImportPage() {
                   ) : profileQuery.data?.queue?.length ? (
                     profileQuery.data.queue.slice(0, 3).map((row) => (
                       <div key={row.id} className="rounded border border-primary/25 bg-primary/10 px-2 py-2 text-xs">
-                        <div className="font-black text-primary">
-                          {row.queueState === 'matched' ? 'Next Arena matchup' : 'Waiting for match'}
+                        <div className="flex items-center justify-between font-black text-primary">
+                          <span>{row.queueState === 'matched' ? 'Next Arena matchup' : 'Waiting for match'}</span>
+                          {row.startsAt && row.queueState !== 'live' ? (
+                            <QueueCountdown startsAt={row.startsAt} title={row.title} />
+                          ) : row.queueState === 'live' ? (
+                            <span className="text-green-500 animate-pulse">Live</span>
+                          ) : null}
                         </div>
                         <div className="mt-0.5 truncate font-bold text-foreground">
                           {row.opponentName ? `${row.agentName} vs ${row.opponentName}` : row.agentName}
