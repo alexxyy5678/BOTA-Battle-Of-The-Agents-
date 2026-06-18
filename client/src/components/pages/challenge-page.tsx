@@ -769,9 +769,23 @@ function AgentCalloutCard({
   isAccepting?: boolean;
 }) {
   const isPending = challenge.status === 'pending';
-  const countdown = isPending ? formatCountdown(secondsUntil(challenge.expiresAt)) : formatCountdown(secondsUntil(challenge.scheduledAt));
-  const statusLabel = isPending ? 'Pending Acceptance' : challenge.status === 'scheduled' ? 'Fight Scheduled' : challenge.status;
+  const secondsToScheduled = secondsUntil(challenge.scheduledAt);
+  const countdown = isPending ? formatCountdown(secondsUntil(challenge.expiresAt)) : formatCountdown(secondsToScheduled);
+  const isMatchStarted = challenge.status === 'scheduled' && secondsToScheduled <= 0;
+  const statusLabel = isPending ? 'Pending Acceptance' : isMatchStarted ? 'Live in Arena' : challenge.status === 'scheduled' ? 'Fight Scheduled' : challenge.status;
   const canAccept = isPending && challenge.viewerRole !== 'challenger';
+  const { toast } = useToast();
+  const [notifiedStarted, setNotifiedStarted] = useState(false);
+
+  useEffect(() => {
+    if (isMatchStarted && !notifiedStarted) {
+      setNotifiedStarted(true);
+      toast({
+        title: "Match Started!",
+        description: `Opponent found. Your match ${challenge.challengerAgent.name} vs ${challenge.opponentAgent.name} has begun.`,
+      });
+    }
+  }, [isMatchStarted, notifiedStarted, challenge.challengerAgent.name, challenge.opponentAgent.name, toast]);
   const predictionOpen = challenge.predictionEnabled && ['accepted', 'scheduled'].includes(challenge.status);
   const share = shareBotaChallenge(
     challenge.challengeCode,
@@ -852,14 +866,23 @@ function AgentCalloutCard({
         ) : null}
 
         <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onAccept?.(challenge.challengeCode)}
-            disabled={!canAccept || isAccepting}
-            className="flex-1 rounded bg-primary px-3 py-2 text-xs font-black text-primary-foreground transition hover:opacity-90 disabled:bg-muted disabled:text-muted-foreground"
-          >
-            {isAccepting ? 'Accepting...' : canAccept ? 'Accept Challenge' : challenge.viewerRole === 'challenger' ? 'Awaiting Rival' : 'View Challenge'}
-          </button>
+          {isMatchStarted ? (
+            <a
+              href="/bota?section=battles"
+              className="flex-1 inline-flex items-center justify-center rounded bg-emerald-500 px-3 py-2 text-xs font-black uppercase tracking-wide text-white transition hover:bg-emerald-400 active:scale-95"
+            >
+              Match Started! Join Battle
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAccept?.(challenge.challengeCode)}
+              disabled={!canAccept || isAccepting}
+              className="flex-1 rounded bg-primary px-3 py-2 text-xs font-black text-primary-foreground transition hover:opacity-90 disabled:bg-muted disabled:text-muted-foreground"
+            >
+              {isAccepting ? 'Accepting...' : canAccept ? 'Accept Challenge' : challenge.viewerRole === 'challenger' ? 'Awaiting Rival' : 'View Challenge'}
+            </button>
+          )}
         </div>
 
         <div className="mt-2 grid grid-cols-3 gap-1">
@@ -1810,9 +1833,9 @@ export default function ChallengePage({ onOpenBattle }: ChallengePageProps) {
   }, [activeFilter, activeTab, battles, liveBattles, nowMs]);
 
   const visibleArenaRecords = useMemo(() => {
-    if (activeTab === 'mine' || !isResultFilter(activeFilter)) return [];
+    if (activeTab === 'mine' || (activeFilter !== 'all' && !isResultFilter(activeFilter))) return [];
     return arenaRecords.filter((record) => {
-      if (activeFilter === 'ended') return record.status === 'resolved' || record.status === 'draw';
+      if (activeFilter === 'ended' || activeFilter === 'all') return record.status === 'resolved' || record.status === 'draw';
       if (activeFilter === 'winners') return record.status === 'resolved' && Boolean(record.winnerSideId || record.winnerAgentId);
       if (activeFilter === 'losers') return record.status === 'resolved' && Boolean(record.loserSideId || record.loserAgentId);
       return false;

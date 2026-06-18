@@ -1,4 +1,4 @@
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, sql, isNotNull } from "drizzle-orm";
 import { botaFighterProfiles } from "@shared/schema.ts";
 import type { BotaFighterProfile } from "@shared/botaFighterProfile";
 import { db } from "../db";
@@ -970,19 +970,28 @@ async function listImportedBattleProfiles(limit: number) {
     return cachedImportedBattleProfiles.slice(0, requested);
   }
   try {
-    const rows = await Promise.race([
+    const [realRows, randomRows] = await Promise.all([
       db
         .select()
         .from(botaFighterProfiles)
-        .orderBy(desc(botaFighterProfiles.fameScore), asc(botaFighterProfiles.rank))
+        .where(isNotNull(botaFighterProfiles.walletAddress))
+        .orderBy(desc(botaFighterProfiles.createdAt))
         .limit(requested),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`Timed out after ${IMPORTED_BATTLE_PROFILE_TIMEOUT_MS}ms`)),
-          IMPORTED_BATTLE_PROFILE_TIMEOUT_MS,
+      Promise.race([
+        db
+          .select()
+          .from(botaFighterProfiles)
+          .orderBy(sql`RANDOM()`)
+          .limit(requested),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Timed out after ${IMPORTED_BATTLE_PROFILE_TIMEOUT_MS}ms`)),
+            IMPORTED_BATTLE_PROFILE_TIMEOUT_MS,
+          ),
         ),
-      ),
+      ]),
     ]);
+    const rows = [...realRows, ...(randomRows as any[])];
     const profiles = rows.map(normalizeProfileRecord).filter(isImportedBattleProfile);
     if (profiles.length > 0) {
       cachedImportedBattleProfiles = profiles;

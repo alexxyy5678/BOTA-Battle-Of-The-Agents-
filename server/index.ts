@@ -485,6 +485,19 @@ async function startHttpServer() {
       } catch (err) {
         console.error("[WARN] Failed to start notification scheduler:", err);
       }
+
+      // Lifecycle notifications (for local arena simulation)
+      try {
+        const { runBotaLifecycleNotificationsOnce } = await import("./bantahBro/botaLifecycleNotificationService");
+        setInterval(() => {
+          void runBotaLifecycleNotificationsOnce().catch((err) => {
+            console.error("[WARN] Lifecycle tick failed:", err);
+          });
+        }, 15000);
+        console.log("[OK] BOTA Lifecycle interval started");
+      } catch (err) {
+        console.error("[WARN] Failed to start BOTA Lifecycle interval:", err);
+      }
     }
 
     // Seed admin users
@@ -620,6 +633,19 @@ export async function initAppForServerless() {
         console.log("[OK] Notification service started");
       } catch (err) {
         console.error("[WARN] Notification service failed:", err);
+      }
+
+      // Lifecycle notifications (for local arena simulation)
+      try {
+        const { runBotaLifecycleNotificationsOnce } = await import("./bantahBro/botaLifecycleNotificationService");
+        setInterval(() => {
+          void runBotaLifecycleNotificationsOnce().catch((err) => {
+            console.error("[WARN] Lifecycle tick failed:", err);
+          });
+        }, 15000);
+        console.log("[OK] BOTA Lifecycle interval started");
+      } catch (err) {
+        console.error("[WARN] Failed to start BOTA Lifecycle interval:", err);
       }
     } else {
       console.log(

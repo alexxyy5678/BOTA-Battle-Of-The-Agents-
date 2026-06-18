@@ -2910,7 +2910,7 @@ export async function listBotaFighterProfiles(input: {
     }
   }
 
-  const requestedLimit = Math.max(1, Math.min(Math.round(input.limit || 40), 100));
+  const requestedLimit = Math.max(1, Math.min(Math.round(input.limit || 40), 5000));
   const mergeLimit = Math.max(requestedLimit * 3, 160);
   const shouldLoadExternalCatalog =
     !input.origin ||
@@ -2982,7 +2982,7 @@ export async function listBotaFighterProfilesForOwner(input: {
         .filter(Boolean),
     ),
   );
-  const requestedLimit = Math.max(1, Math.min(Math.round(input.limit || 100), 100));
+  const requestedLimit = Math.max(1, Math.min(Math.round(input.limit || 100), 5000));
   if (!userId && wallets.length === 0) {
     return {
       profiles: [] as BotaFighterProfile[],

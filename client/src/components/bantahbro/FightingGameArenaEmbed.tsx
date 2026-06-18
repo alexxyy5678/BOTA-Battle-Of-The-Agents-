@@ -418,6 +418,41 @@ export function FightingGameArenaEmbed({
       // Mobile private browsing can block storage; keep the live engine state anyway.
     }
     engineRef.current?.setSoundEnabled(gameSoundEnabled);
+    if (typeof window !== 'undefined' && window.__botaArenaMusicElement) {
+      try {
+        if (gameSoundEnabled) {
+          window.__botaArenaMusicElement.play().catch(() => {});
+        } else {
+          window.__botaArenaMusicElement.pause();
+        }
+      } catch (e) {}
+    }
+  }, [gameSoundEnabled]);
+
+  // Handle ambient audio unlock on user interaction if autoplay failed
+  useEffect(() => {
+    if (!gameSoundEnabled) return;
+
+    const handleInteraction = () => {
+      if (typeof window !== 'undefined' && window.__botaArenaMusicElement) {
+        if (window.__botaArenaMusicElement.paused) {
+          window.__botaArenaMusicElement.play().catch(() => {});
+        }
+      }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+
+    window.addEventListener('click', handleInteraction, { passive: true });
+    window.addEventListener('keydown', handleInteraction, { passive: true });
+    window.addEventListener('touchstart', handleInteraction, { passive: true });
+
+    return cleanup;
   }, [gameSoundEnabled]);
 
   useEffect(() => {

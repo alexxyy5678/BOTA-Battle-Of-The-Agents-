@@ -3820,7 +3820,7 @@ export default function BattlesPage({
   const { isAuthenticated, isLoading: authLoading, login, user: privyUser } = useAuth();
   const rawUserId = typeof privyUser?.id === 'string' ? privyUser.id.replace('did:privy:', '') : undefined;
   const publicUser = usePublicUserBasic(rawUserId);
-  const userDisplayName = getUserDisplayName(publicUser, 'Degen');
+  const userDisplayName = getUserDisplayName(publicUser, '');
   const { wallets } = useWallets();
   const walletAddress = getWalletAddress(wallets as unknown[]);
   const [chatInput, setChatInput] = useState('');
@@ -4414,6 +4414,11 @@ export default function BattlesPage({
     event.preventDefault();
     const text = chatInput.trim();
     if (!text || isSendingChat) return;
+
+    if (!publicUser || !userDisplayName) {
+      login();
+      return;
+    }
 
     setIsSendingChat(true);
     setChatInput('');

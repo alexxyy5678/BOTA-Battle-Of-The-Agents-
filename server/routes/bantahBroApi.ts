@@ -2464,7 +2464,7 @@ router.get("/trollbox", async (req, res) => {
 router.post("/trollbox", async (req, res) => {
   try {
     const parsed = bantahBroTrollboxPostSchema.parse(req.body || {});
-    const user = parsed.user || "Web Degen";
+    const user = parsed.user || "Fighter";
     const message = recordBantahBroTrollboxMessage({
       roomId: parsed.roomId,
       battleId: parsed.battleId || null,

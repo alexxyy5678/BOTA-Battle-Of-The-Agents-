@@ -28,7 +28,7 @@ import {
   joinMarketInputSchema,
   readMarketInputSchema,
 } from "@shared/agentSkill";
-import { agents, challenges, pairQueue, users } from "@shared/schema";
+import { agents, botaFighterProfiles, challenges, pairQueue, users } from "@shared/schema";
 import {
   normalizeOnchainTokenSymbol,
   toAtomicUnits,
@@ -833,6 +833,22 @@ router.post("/create", PrivyAuthMiddleware, async (req, res) => {
       runtimeConfig: elizaRuntime,
       isTokenized: false,
     });
+
+    await db.insert(botaFighterProfiles).values({
+      agentId,
+      displayName: parsedBody.agentName.trim(),
+      origin: "bota",
+      originId: null,
+      agentClass: "striker",
+      archetype: "signal_striker",
+      league: "Open League",
+      fameScore: 50,
+      avatarUrl: parsedBody.avatarUrl ? parsedBody.avatarUrl.trim() : null,
+      walletAddress: provisionedWallet.walletAddress,
+      metadata: { ownerUserId: ownerId },
+      lastSeenAt: new Date(),
+      updatedAt: new Date(),
+    }).onConflictDoNothing();
 
     let activeRuntimeConfig = elizaRuntime;
     try {

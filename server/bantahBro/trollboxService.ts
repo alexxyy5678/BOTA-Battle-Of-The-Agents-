@@ -95,7 +95,7 @@ export function recordBantahBroTrollboxMessage(input: RecordMessageInput): Banta
     roomId,
     battleId,
     source: input.source,
-    user: clampText(input.user, input.source === "telegram" ? "Telegram User" : "Web Degen", 64),
+    user: clampText(input.user, "", 64),
     handle,
     message,
     createdAt,

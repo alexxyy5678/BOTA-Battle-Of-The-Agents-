@@ -291,7 +291,7 @@ function ensIdentityStatusLabel(status: string) {
   return status || 'Ready'
 }
 
-function QueueCountdown({ startsAt, title }: { startsAt: string; title: string }) {
+function QueueCountdown({ startsAt, title, arenaUrl }: { startsAt: string; title: string; arenaUrl?: string }) {
   const [now, setNow] = useState(() => Date.now())
   const { toast } = useToast()
   const [notified, setNotified] = useState(false)
@@ -315,7 +315,15 @@ function QueueCountdown({ startsAt, title }: { startsAt: string; title: string }
   }, [diff, title, toast, notified])
 
   if (diff <= 0) {
-    return <span className="text-green-500 animate-pulse">Live</span>
+    return (
+      <a
+        href={arenaUrl || botaAppHref('/bota?section=battles')}
+        className="flex items-center gap-1 rounded border border-green-500/30 bg-green-500/10 px-1.5 py-0.5 text-green-500 hover:bg-green-500/20 transition-colors"
+      >
+        <span className="animate-pulse">Join Live</span>
+        <ExternalLink size={10} />
+      </a>
+    )
   }
 
   const seconds = Math.floor(diff / 1000)
@@ -1088,7 +1096,7 @@ export default function ImportPage() {
                         <div className="flex items-center justify-between font-black text-primary">
                           <span>{row.queueState === 'matched' ? 'Next Arena matchup' : 'Waiting for match'}</span>
                           {row.startsAt && row.queueState !== 'live' ? (
-                            <QueueCountdown startsAt={row.startsAt} title={row.title} />
+                            <QueueCountdown startsAt={row.startsAt} title={row.title} arenaUrl={row.arenaUrl} />
                           ) : row.queueState === 'live' ? (
                             <a 
                               href={row.arenaUrl || botaAppHref('/bota?section=battles')} 
