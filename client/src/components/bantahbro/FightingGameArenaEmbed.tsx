@@ -302,13 +302,7 @@ function getOverlayCopy(status: BattleArenaStatus) {
         detail: 'Fighters are warming up. Arena preview is open.',
         tone: 'border-primary/30 bg-primary/10 text-primary',
       };
-    case 'cancelled':
-      return {
-        eyebrow: 'Cancelled',
-        title: 'Battle cancelled',
-        detail: 'This matchup was pulled from the queue.',
-        tone: 'border-destructive/20 bg-destructive/10 text-destructive',
-      };
+
     case 'rematch':
       return {
         eyebrow: 'Rematch',
