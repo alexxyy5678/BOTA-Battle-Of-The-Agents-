@@ -12,3 +12,6 @@ dependsOn = ["install"]
 
 [start]
 cmd = "npm run start"
+
+[variables]
+NPM_CONFIG_PRODUCTION = "false"
