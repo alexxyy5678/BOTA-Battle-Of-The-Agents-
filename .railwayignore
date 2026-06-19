@@ -41,3 +41,8 @@ Dockerfile
 **/node_modules
 **/.git
 **/.next
+
+scratch/
+old_*
+*.bak
+.gemini/

@@ -1,8 +1,14 @@
+# Railway / Nixpacks build configuration
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-9_x", "openssl"]
+
 [phases.install]
-cmds = ["npm install --no-audit --no-fund"]
+cmds = ["npm install --legacy-peer-deps --no-audit --no-fund --include=dev"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["npx vite build && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=cjs --outfile=dist/index.cjs --external:./vite"]
+dependsOn = ["install"]
 
 [start]
 cmd = "npm run start"
