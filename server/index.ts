@@ -162,9 +162,23 @@ const clientPublicPath = path.resolve(__dirname, "../client/public");
 const twoDGamePath = path.join(clientPublicPath, "2dgame");
 
 function isMainModule() {
-  const entrypoint = process.argv[1];
+  // After bundling with esbuild, __filename may not match process.argv[1] exactly.
+  // Instead, check if the entry point ends with the expected bundle name or if it's
+  // being executed directly (not being required/imported as a module).
+  const entrypoint = process.argv[1] || "";
   if (!entrypoint) return false;
-  return path.resolve(entrypoint) === __filename;
+  
+  // Check if it looks like our built index.js or if it contains server/index
+  if (entrypoint.includes("dist/index.js") || entrypoint.includes("dist/index")) {
+    return true;
+  }
+  
+  // Fallback to original check for dev environments
+  try {
+    return path.resolve(entrypoint) === __filename;
+  } catch {
+    return false;
+  }
 }
 
 function isVercelRuntime() {

@@ -6,7 +6,6 @@ artifacts
 .codex-tmp
 .codex-tmp*
 .vercel
-attached_assets
 chrome-extension
 archived
 tests
